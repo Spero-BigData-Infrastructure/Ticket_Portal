@@ -9,10 +9,14 @@ from fastapi import Body
 from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font
- 
-
+import os
+from fastapi import Query
+from fastapi.responses import FileResponse
+from openpyxl.styles import Font
+import tempfile
 
 app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -77,7 +81,6 @@ async def dashboard_ws(websocket: WebSocket):
     try:
         while True:
 
-            # 🔥 STATUS SUMMARY
             status_data = await cached_query(
                 """
                 SELECT 
@@ -116,7 +119,7 @@ async def dashboard_ws(websocket: WebSocket):
                 fetch="all"
             )
 
-            # 🔥 TICKET TYPE SUMMARY
+        
             ticket_type_summary = await cached_query(
                 """
                 SELECT 
@@ -152,7 +155,7 @@ async def dashboard_ws(websocket: WebSocket):
                 fetch="all"
             )
 
-            # 🔥 FORMAT STATUS DATA
+            # FORMAT STATUS DATA
             formatted_status = {}
 
             for row in status_data:
@@ -168,7 +171,7 @@ async def dashboard_ws(websocket: WebSocket):
                     "till_date": int(row["till_date"] or 0)
                 }
 
-            # 🔥 FORMAT TICKET TYPES
+            #  FORMAT TICKET TYPES
             formatted_ticket_types = []
 
             for row in ticket_type_summary or []:
@@ -185,7 +188,7 @@ async def dashboard_ws(websocket: WebSocket):
 
                 })
 
-            # 📦 FINAL RESPONSE
+            # FINAL RESPONSE
             data = {
 
                 **formatted_status,
@@ -194,7 +197,7 @@ async def dashboard_ws(websocket: WebSocket):
 
             }
 
-            # 🔥 CHANGE DETECTION
+            # CHANGE DETECTION
             current_hash = make_hash(data)
 
             if current_hash != last_hash:
@@ -205,21 +208,21 @@ async def dashboard_ws(websocket: WebSocket):
 
                 last_hash = current_hash
 
-                print("📡 Dashboard updated")
+                print("Dashboard updated")
 
             else:
-                print("⏸ No changes")
+                print("No changes")
 
-            # 🔥 REFRESH EVERY 5 SEC
+           
             await asyncio.sleep(5)
 
     except WebSocketDisconnect:
 
-        print("❌ Client disconnected")
+        print("Client disconnected")
 
     except Exception as e:
 
-        print("❌ WebSocket Error:", str(e))
+        print(" WebSocket Error:", str(e))
 ######################################################################################################
 @app.websocket("/ws/agent-summary")
 async def agent_summary_ws(websocket: WebSocket):
@@ -231,7 +234,7 @@ async def agent_summary_ws(websocket: WebSocket):
     try:
         while True:
 
-            # 🔥 AGENT WISE SUMMARY
+            
             agent_summary = await cached_query(
                 """
                 SELECT 
@@ -358,7 +361,7 @@ async def agent_summary_ws(websocket: WebSocket):
                 fetch="all"
             )
 
-            # 🔥 FORMAT RESPONSE
+            #  FORMAT RESPONSE
             formatted_data = []
 
             for row in agent_summary or []:
@@ -395,7 +398,6 @@ async def agent_summary_ws(websocket: WebSocket):
 
                 })
 
-            # 📦 FINAL RESPONSE
             data = {
                 "agent_wise_ticket_summary": formatted_data
             }
@@ -714,4 +716,334 @@ async def uvdesk_master_report(payload: dict = Body({})):
             "status": False,
             "message": str(e)
         }
-    ####################################################################################################
+####################################################################################################
+
+@app.get("/api/download/uvdesk-report")
+async def download_uvdesk_report(
+
+    from_date: str = Query(...),
+    to_date: str = Query(...)
+
+):
+
+
+    date_filter = """
+    AND DATE(t.created_at)
+    BETWEEN :from_date AND :to_date
+    """
+
+    params = {
+        "from_date": from_date,
+        "to_date": to_date
+    }
+
+
+    ticket_query = f"""
+    SELECT
+
+        CONCAT('#', t.id) AS ticket_id,
+
+        t.subject,
+
+        CONCAT(c.first_name,' ',c.last_name) AS added_by,
+
+        DATE_FORMAT(
+            t.created_at,
+            '%d/%m/%Y %H:%i'
+        ) AS created_at,
+
+        sg.name AS project_name,
+
+        ty.code AS type,
+
+        CONCAT(a.first_name,' ',a.last_name) AS assigned_to,
+
+        CASE
+            WHEN t.status_id = 1 THEN 'Open'
+            WHEN t.status_id = 2 THEN 'Pending'
+            WHEN t.status_id = 3 THEN 'Answered'
+            WHEN t.status_id = 4 THEN 'Resolved'
+            WHEN t.status_id = 5 THEN 'Closed'
+        END AS status,
+
+        DATE_FORMAT(
+            t.updated_at,
+            '%d/%m/%Y %H:%i'
+        ) AS updated_at,
+
+        CASE
+            WHEN t.status_id = 5
+            THEN DATE_FORMAT(
+                t.updated_at,
+                '%d/%m/%Y %H:%i'
+            )
+            ELSE ''
+        END AS closed_date,
+
+        CASE
+            WHEN t.status_id = 5
+            THEN DATEDIFF(
+                t.updated_at,
+                t.created_at
+            )
+
+            ELSE DATEDIFF(
+                NOW(),
+                t.created_at
+            )
+
+        END AS sla_days,
+
+        ROUND(
+
+            CASE
+                WHEN t.status_id = 5
+                THEN TIMESTAMPDIFF(
+                    MINUTE,
+                    t.created_at,
+                    t.updated_at
+                )
+
+                ELSE TIMESTAMPDIFF(
+                    MINUTE,
+                    t.created_at,
+                    NOW()
+                )
+
+            END / 60, 2
+
+        ) AS sla_hours
+
+    FROM uv_ticket t
+
+    LEFT JOIN uv_user c
+    ON t.customer_id = c.id
+
+    LEFT JOIN uv_user a
+    ON t.agent_id = a.id
+
+    LEFT JOIN uv_ticket_type ty
+    ON t.type_id = ty.id
+
+    LEFT JOIN uv_support_group sg
+    ON t.group_id = sg.id
+
+    WHERE t.is_trashed != 1
+
+    {date_filter}
+
+    GROUP BY t.id
+
+    ORDER BY t.id DESC
+    """
+
+    agent_query = f"""
+    SELECT
+
+        CONCAT(u.first_name,' ',u.last_name) AS Agent_Name,
+
+        SUM(
+            CASE 
+                WHEN t.status_id = 1 
+                THEN 1 ELSE 0 
+            END
+        ) AS Open_Count,
+
+        SUM(
+            CASE 
+                WHEN t.status_id = 2 
+                THEN 1 ELSE 0 
+            END
+        ) AS Pending_Count,
+
+        SUM(
+            CASE 
+                WHEN t.status_id = 3 
+                THEN 1 ELSE 0 
+            END
+        ) AS Answered_Count,
+
+        SUM(
+            CASE 
+                WHEN t.status_id = 4 
+                THEN 1 ELSE 0 
+            END
+        ) AS Resolved_Count,
+
+        SUM(
+            CASE 
+                WHEN t.status_id = 5 
+                THEN 1 ELSE 0 
+            END
+        ) AS Closed_Count,
+
+        COUNT(t.id) AS Total_Tickets
+
+    FROM uv_ticket t
+
+    LEFT JOIN uv_user u
+    ON t.agent_id = u.id
+
+    WHERE t.is_trashed != 1
+
+    {date_filter}
+
+    GROUP BY t.agent_id
+
+    ORDER BY Agent_Name ASC
+    """
+
+
+    ticket_data = await database.fetch_all(
+        query=ticket_query,
+        values=params
+    )
+
+    agent_data = await database.fetch_all(
+        query=agent_query,
+        values=params
+    )
+
+
+    wb = Workbook()
+
+
+
+    ws1 = wb.active
+
+    ws1.title = "Agent Summary"
+
+    agent_headers = [
+        "Agent Name",
+        "Open",
+        "Pending",
+        "Answered",
+        "Resolved",
+        "Closed",
+        "Total"
+    ]
+
+    ws1.append(agent_headers)
+
+    for cell in ws1[1]:
+        cell.font = Font(bold=True)
+
+    for row in agent_data:
+
+        row = dict(row)
+
+        ws1.append([
+            row["Agent_Name"],
+            row["Open_Count"],
+            row["Pending_Count"],
+            row["Answered_Count"],
+            row["Resolved_Count"],
+            row["Closed_Count"],
+            row["Total_Tickets"]
+        ])
+
+    # =====================================================
+    # SHEET 2 → TICKET REPORT
+    # =====================================================
+
+    ws2 = wb.create_sheet(title="Ticket Report")
+
+    ticket_headers = [
+        "Ticket ID",
+        "Issue",
+        "Added By",
+        "Added Date",
+        "Project",
+        "Type",
+        "Assigned To",
+        "Status",
+        "Updated Date",
+        "Closed Date",
+        "SLA Days",
+        "SLA Hours"
+    ]
+
+    ws2.append(ticket_headers)
+
+    for cell in ws2[1]:
+        cell.font = Font(bold=True)
+
+    for row in ticket_data:
+
+        row = dict(row)
+
+        ws2.append([
+            row["ticket_id"],
+            row["subject"],
+            row["added_by"],
+            row["created_at"],
+            row["project_name"],
+            row["type"],
+            row["assigned_to"],
+            row["status"],
+            row["updated_at"],
+            row["closed_date"],
+            row["sla_days"],
+            row["sla_hours"]
+        ])
+
+    # =====================================================
+    # AUTO COLUMN WIDTH
+    # =====================================================
+
+    for sheet in wb.worksheets:
+
+        for column in sheet.columns:
+
+            max_length = 0
+
+            column_letter = column[0].column_letter
+
+            for cell in column:
+
+                try:
+
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+
+                except:
+                    pass
+
+            sheet.column_dimensions[
+                column_letter
+            ].width = max_length + 5
+
+    # =====================================================
+    # SAVE FILE IN TEMP FOLDER
+    # =====================================================
+
+    filename = (
+        f"uvdesk_report_"
+        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    )
+
+    temp_dir = tempfile.gettempdir()
+
+    file_path = os.path.join(
+        temp_dir,
+        filename
+    )
+
+    wb.save(file_path)
+
+    # =====================================================
+    # RETURN FILE
+    # =====================================================
+
+    return FileResponse(
+
+        path=file_path,
+
+        filename=filename,
+
+        media_type=(
+            "application/"
+            "vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        )
+    )

@@ -58,7 +58,7 @@ async def cached_query(sql, params=None, ttl=15, fetch="all", db=database):
 ##################################################################################################
 def make_hash(data: dict):
     return hashlib.md5(
-        json.dumps(data, sort_keys=True).encode()
+        json.dumps(data, sort_keys=True, default=str).encode()
     ).hexdigest()
 
 
@@ -146,33 +146,50 @@ async def dashboard_ws(websocket: WebSocket):
                 fetch="all"
             )
 
-            # 🔥 CONVERT STATUS ARRAY → OBJECT
+            # 🔥 FORMAT STATUS DATA
             formatted_status = {}
 
             for row in status_data:
-                status_name = row["status"].lower()
+
+                status_name = str(row["status"]).lower()
 
                 formatted_status[f"{status_name}_tickets"] = {
-                    "today": row["today"],
-                    "month": row["month"],
-                    "till_date": row["till_date"]
+                    "today": int(row["today"] or 0),
+                    "month": int(row["month"] or 0),
+                    "till_date": int(row["till_date"] or 0)
                 }
+
+            # 🔥 FORMAT TICKET TYPES
+            formatted_ticket_types = []
+
+            for row in ticket_type_summary or []:
+
+                formatted_ticket_types.append({
+                    "ticket_type": str(row["ticket_type"] or ""),
+                    "today": int(row["today"] or 0),
+                    "month": int(row["month"] or 0),
+                    "till_date": int(row["till_date"] or 0)
+                })
 
             # 📦 FINAL RESPONSE
             data = {
                 **formatted_status,
-                "ticket_type_summary": [
-                    dict(i) for i in ticket_type_summary or []
-                ]
+                "ticket_type_summary": formatted_ticket_types
             }
 
             # 🔥 CHANGE DETECTION
             current_hash = make_hash(data)
 
             if current_hash != last_hash:
-                await websocket.send_text(json.dumps(data))
+
+                await websocket.send_text(
+                    json.dumps(data, default=str)
+                )
+
                 last_hash = current_hash
+
                 print("📡 Dashboard updated")
+
             else:
                 print("⏸ No changes")
 
@@ -180,3 +197,6 @@ async def dashboard_ws(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("❌ Client disconnected")
+
+    except Exception as e:
+        print("❌ WebSocket Error:", str(e))

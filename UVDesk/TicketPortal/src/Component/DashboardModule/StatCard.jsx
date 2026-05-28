@@ -21,16 +21,11 @@ const StatCard = ({ title, value, color, icon, trend }) => {
       ${color}08 45%,
       #ffffff 100%
     )`,
-
         border: `1px solid ${color}18`,
-
         transition: "all 0.3s ease",
-
         boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
-
         display: "flex",
         alignItems: "center",
-
         "&:hover": {
           transform: "translateY(-4px)",
           boxShadow: "0 18px 40px rgba(0,0,0,0.08)",
@@ -43,12 +38,9 @@ const StatCard = ({ title, value, color, icon, trend }) => {
           position: "absolute",
           top: "-45px",
           right: "-45px",
-
           width: "140px",
           height: "140px",
-
           borderRadius: "50%",
-
           background: `${color}10`,
         }}
       />
@@ -75,14 +67,9 @@ const StatCard = ({ title, value, color, icon, trend }) => {
       {/* Main Horizontal Layout */}
       <Box
         sx={{
-          width: "100%",
-
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-
-          gap: 2,
-
           position: "relative",
           zIndex: 2,
         }}
@@ -125,11 +112,10 @@ const StatCard = ({ title, value, color, icon, trend }) => {
             }}
           >
             <Typography
-              fontWeight={700}
-              fontSize={14}
+              fontWeight={"bold"}
+              fontSize={11}
               sx={{
                 color: "#0f172a",
-
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",

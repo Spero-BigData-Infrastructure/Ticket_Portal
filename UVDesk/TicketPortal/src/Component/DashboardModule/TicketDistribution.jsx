@@ -1,5 +1,3 @@
-// TicketDistribution.jsx
-
 import React from "react";
 
 import {
@@ -24,9 +22,15 @@ const COLORS = [
   "#ff9100",
   "#00c853",
   "#9e9e9e",
+  "#00bcd4",
+  "#8bc34a",
+  "#673ab7",
+  "#ff5722",
 ];
 
-const TicketDistribution = ({ pieData }) => {
+const TicketDistribution = ({
+  pieData = [],
+}) => {
   const totalTickets = pieData.reduce(
     (sum, item) => sum + item.value,
     0
@@ -38,23 +42,38 @@ const TicketDistribution = ({ pieData }) => {
       sx={{
         width: "100%",
         height: "100%",
+
         borderRadius: "24px",
-        p: { xs: 2, md: 3 },
+
+        p: {
+          xs: 2,
+          md: 2,
+        },
+
         background: "#ffffff",
+
         border: "1px solid #eef2f7",
-        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
+
+        boxShadow:
+          "0 10px 30px rgba(15, 23, 42, 0.05)",
+
+        display: "flex",
+
+        flexDirection: "column",
+
+        gap: 2,
       }}
     >
       {/* HEADER */}
       <Stack
         alignItems="center"
         justifyContent="center"
-        // mb={2.5}
+        spacing={0.3}
       >
         <Typography
-          fontWeight={800}
           sx={{
-            fontSize: "17px",
+            fontSize: "18px",
+            fontWeight: 800,
             color: "#0A1128",
             textAlign: "center",
           }}
@@ -66,7 +85,6 @@ const TicketDistribution = ({ pieData }) => {
           sx={{
             fontSize: "12px",
             color: "#64748b",
-            mt: 0.3,
           }}
         >
           Till Date
@@ -76,34 +94,53 @@ const TicketDistribution = ({ pieData }) => {
       {/* CHART */}
       <Box
         sx={{
-          height: { xs: 250, sm: 280, md: 320 },
+          height: {
+            xs: 300,
+            sm: 340,
+            md: 380,
+          },
+
           position: "relative",
+
+          flexShrink: 0,
         }}
       >
-        <ResponsiveContainer >
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
           <PieChart>
             <Pie
-            //   data={pieData}
+              data={pieData}
               dataKey="value"
               cx="50%"
               cy="50%"
-              innerRadius={78}
-              outerRadius={118}
+              innerRadius={75}
+              outerRadius={115}
               paddingAngle={2}
-              cornerRadius={6}
+              cornerRadius={5}
               labelLine={false}
               label={({ percent }) =>
                 percent > 0.08
-                  ? `${(percent * 100).toFixed(1)}%`
+                  ? `${(
+                      percent * 100
+                    ).toFixed(1)}%`
                   : ""
               }
             >
-              {/* {pieData.map((entry, index) => (
-                <Cell
-                  key={index}
-                  fill={COLORS[index % COLORS.length]}
-                />
-              ))} */}
+              {pieData.map(
+                (entry, index) => (
+                  <Cell
+                    key={index}
+                    fill={
+                      COLORS[
+                        index %
+                          COLORS.length
+                      ]
+                    }
+                  />
+                )
+              )}
             </Pie>
 
             <Tooltip />
@@ -114,9 +151,13 @@ const TicketDistribution = ({ pieData }) => {
         <Box
           sx={{
             position: "absolute",
+
             top: "50%",
             left: "50%",
-            transform: "translate(-50%, -50%)",
+
+            transform:
+              "translate(-50%, -50%)",
+
             textAlign: "center",
           }}
         >
@@ -124,7 +165,6 @@ const TicketDistribution = ({ pieData }) => {
             sx={{
               fontSize: "12px",
               color: "#64748b",
-              mb: 0.3,
             }}
           >
             Total
@@ -132,9 +172,15 @@ const TicketDistribution = ({ pieData }) => {
 
           <Typography
             sx={{
-              fontSize: "28px",
+              fontSize: {
+                xs: "24px",
+                md: "30px",
+              },
+
               fontWeight: 800,
+
               color: "#0A1128",
+
               lineHeight: 1,
             }}
           >
@@ -145,7 +191,6 @@ const TicketDistribution = ({ pieData }) => {
             sx={{
               fontSize: "12px",
               color: "#64748b",
-            //   mt: 0.5,
             }}
           >
             Tickets
@@ -154,26 +199,42 @@ const TicketDistribution = ({ pieData }) => {
       </Box>
 
       {/* LEGEND */}
-      <Stack >
+      <Stack
+        spacing={1}
+        sx={{
+          maxHeight: 320,
+          overflowY: "auto",
+          pr: 0.5,
+          "&::-webkit-scrollbar": {
+            width: "4px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "#CBD5E1",
+            borderRadius: "10px",
+          },
+        }}
+      >
         {pieData.map((item, index) => {
-          const percentage = (
-            (item.value / totalTickets) *
-            100
-          ).toFixed(1);
+          const percentage =
+            totalTickets > 0
+              ? (
+                  (item.value /
+                    totalTickets) *
+                  100
+                ).toFixed(1)
+              : 0;
 
           return (
             <Box
               key={index}
               sx={{
-                borderRadius:
-                  item.name === "Others"
-                    ? "10px"
-                    : "0px",
-
+                p: 1,
+                borderRadius: "12px",
                 background:
-                  item.name === "Others"
-                    ? "#f5f7fb"
-                    : "transparent",
+                  "rgba(248,250,252,0.7)",
+
+                border:
+                  "1px solid #f1f5f9",
               }}
             >
               <Stack
@@ -182,9 +243,10 @@ const TicketDistribution = ({ pieData }) => {
                 justifyContent="space-between"
                 spacing={1}
               >
+                {/* LEFT */}
                 <Stack
                   direction="row"
-                  spacing={1.2}
+                  spacing={1}
                   alignItems="center"
                   sx={{
                     flex: 1,
@@ -195,20 +257,32 @@ const TicketDistribution = ({ pieData }) => {
                     sx={{
                       width: 10,
                       height: 10,
+
                       borderRadius: "50%",
+
                       bgcolor:
-                        COLORS[index % COLORS.length],
+                        COLORS[
+                          index %
+                            COLORS.length
+                        ],
+
                       flexShrink: 0,
                     }}
                   />
 
                   <Typography
                     sx={{
-                      fontSize: "13px",
+                      fontSize: "12px",
+
                       color: "#0f172a",
-                      whiteSpace: "nowrap",
+
                       overflow: "hidden",
-                      textOverflow: "ellipsis",
+
+                      textOverflow:
+                        "ellipsis",
+
+                      whiteSpace:
+                        "nowrap",
                     }}
                   >
                     {item.name}
@@ -218,13 +292,17 @@ const TicketDistribution = ({ pieData }) => {
                 {/* RIGHT */}
                 <Typography
                   sx={{
-                    fontSize: "13px",
+                    fontSize: "12px",
+
                     fontWeight: 700,
+
                     color: "#0f172a",
+
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {item.value} ({percentage}%)
+                  {item.value} (
+                  {percentage}%)
                 </Typography>
               </Stack>
             </Box>

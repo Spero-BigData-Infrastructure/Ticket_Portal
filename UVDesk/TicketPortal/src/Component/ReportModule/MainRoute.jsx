@@ -48,10 +48,17 @@ export default function MainRoute() {
 
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const formatDate = (date) => date.toISOString().split("T")[0];
+    // const formatDate = (date) => date.toISOString().split("T")[0];
+
+    const formatDate = (date) => {
+      const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+      return offsetDate.toISOString().split("T")[0];
+    };
 
     const defaultFrom = formatDate(firstDay);
     const defaultTo = formatDate(today);
+
+    console.log("defaultFromdefaultFrom", defaultFrom, defaultTo);
 
     setFromDate(defaultFrom);
     setToDate(defaultTo);

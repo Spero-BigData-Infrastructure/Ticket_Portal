@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Box, Container, CircularProgress } from "@mui/material";
-
 import FilterSection from "./FilterSection";
 import AgenSummaryTable from "./AgentSummaryTable";
 import TicketDetails from "./TicketDetails";

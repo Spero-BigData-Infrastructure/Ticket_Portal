@@ -30,7 +30,7 @@ import {
 } from "@mui/icons-material";
 import { API_BASE_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
-
+import DashboardIcon from "@mui/icons-material/Dashboard";
 export default function TicketSummarySection({
   fromDate,
   toDate,
@@ -151,16 +151,37 @@ export default function TicketSummarySection({
                 onClick={() => navigate(-1)}
                 sx={{
                   cursor: "pointer",
-                  width: 38,
                   height: 38,
+                  px: 1.5,
                   borderRadius: "10px",
                   background: "rgba(37, 99, 235, 0.10)",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: 1,
+                  transition: "0.2s",
+
+                  "&:hover": {
+                    background: "rgba(37, 99, 235, 0.18)",
+                  },
                 }}
               >
-                <ArrowBack sx={{ color: "#2563EB", fontSize: 22 }} />
+                <DashboardIcon
+                  sx={{
+                    color: "#2563EB",
+                    fontSize: 20,
+                  }}
+                />
+
+                <Typography
+                  sx={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "#2563EB",
+                    lineHeight: 1,
+                  }}
+                >
+                  Dashboard
+                </Typography>
               </Box>
 
               {/* TITLE */}

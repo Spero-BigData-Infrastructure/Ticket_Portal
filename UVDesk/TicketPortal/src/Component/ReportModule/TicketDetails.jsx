@@ -82,16 +82,19 @@ export default function TicketDetails({ rows }) {
         overflow: "hidden",
         background: "#fff",
         boxShadow: "0 4px 18px rgba(15,23,42,0.05)",
+        // mb: 3,
+        p: 1.5,
+        boxSizing: "border-box",
       }}
     >
       {/* HEADER */}
       <Stack
         direction="row"
         alignItems="center"
-        spacing={1.2}
+        spacing={2}
         sx={{
-          px: 2.5,
-          py: 2,
+          px: 2,
+          py: 1,
           borderBottom: "1px solid #EEF2F7",
         }}
       >
@@ -124,6 +127,8 @@ export default function TicketDetails({ rows }) {
       {/* TABLE */}
       <TableContainer
         sx={{
+          borderRadius: 4,
+          border: "1px solid #E2E8F0",
           overflowX: "auto",
         }}
       >
@@ -131,7 +136,6 @@ export default function TicketDetails({ rows }) {
           sx={{
             minWidth: 1600,
             tableLayout: "fixed",
-
             "& .MuiTableCell-root": {
               borderBottom: "1px solid #E2E8F0",
               verticalAlign: "middle",

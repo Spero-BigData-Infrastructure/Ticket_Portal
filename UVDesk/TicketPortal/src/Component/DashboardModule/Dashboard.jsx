@@ -100,7 +100,7 @@ export default function TicketDashboard() {
   const pieData =
     dashboardData?.ticket_type_summary?.map((item) => ({
       name: item.ticket_type,
-      value: item[tabKey],
+      value: Number(item?.[tabKey] || 0),
     })) || [];
 
   /* ---------------- AGENT DATA ---------------- */
@@ -154,24 +154,28 @@ export default function TicketDashboard() {
           >
             <Box
               sx={{
-                width: 46,
-                height: 46,
-                borderRadius: "16px",
+                width: 40,
+                height: 40,
+                borderRadius: "12px",
                 background: "linear-gradient(135deg,#2962ff,#7c4dff)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#fff",
                 flexShrink: 0,
+                lineHeight: 0, // 🔥 removes icon baseline shift
               }}
             >
-              <InsertChart />
+              <InsertChart sx={{ fontSize: 20 }} />
             </Box>
+
             <Typography
-              fontWeight={800}
-              fontSize={{
-                xs: 20,
-                md: 24,
+              sx={{
+                fontWeight: 800,
+                fontFamily: "Poppins",
+                fontSize: { xs: 20, md: 20 },
+                color: "#000",
+                lineHeight: 1, // 🔥 important for vertical alignment
               }}
             >
               Ticket Dashboard
@@ -278,6 +282,7 @@ export default function TicketDashboard() {
           title="Open Tickets"
           value={currentStats.open}
           color="#1877F2"
+          fontSize={14}
           icon={<InsertChart />}
         />
 

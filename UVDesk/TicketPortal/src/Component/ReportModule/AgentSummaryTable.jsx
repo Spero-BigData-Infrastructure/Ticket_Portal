@@ -96,28 +96,28 @@ export default function AgenSummaryTable({ rows = [] }) {
       }}
     >
       {/* HEADER */}
-      <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+      <Stack direction="row" alignItems="center" spacing={2} mb={1}>
         <Box
           sx={{
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             borderRadius: "12px",
             background: "linear-gradient(135deg,#0076F7,#0059D6)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "0px 4px 10px rgba(25,118,210,0.25)",
+            m: 1,
           }}
         >
-          <SupportAgent sx={{ color: "#fff", fontSize: 22 }} />
+          <SupportAgent sx={{ color: "#fff", fontSize: 20 }} />
         </Box>
-
         <Typography
           sx={{
             fontSize: {
               xs: "16px",
-              sm: "20px",
-              md: "22px",
+              sm: "18px",
+              md: "16px",
             },
             fontWeight: 700,
             color: "#0F172A",

@@ -1,19 +1,8 @@
 import React from "react";
 
-import {
-  Box,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Paper, Stack, Typography } from "@mui/material";
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const COLORS = [
   "#ff2d78",
@@ -28,12 +17,11 @@ const COLORS = [
   "#ff5722",
 ];
 
-const TicketDistribution = ({
-  pieData = [],
-}) => {
+const TicketDistribution = ({ pieData = [] }) => {
+  // ✅ TOTAL TICKETS
   const totalTickets = pieData.reduce(
-    (sum, item) => sum + item.value,
-    0
+    (sum, item) => sum + Number(item.value || 0),
+    0,
   );
 
   return (
@@ -42,112 +30,70 @@ const TicketDistribution = ({
       sx={{
         width: "100%",
         height: "100%",
-
-        borderRadius: "24px",
-
-        p: {
-          xs: 2,
-          md: 2,
-        },
-
+        px: 2,
+        borderRadius: "22px",
         background: "#ffffff",
-
         border: "1px solid #eef2f7",
-
-        boxShadow:
-          "0 10px 30px rgba(15, 23, 42, 0.05)",
+        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
 
         display: "flex",
-
         flexDirection: "column",
-
-        gap: 2,
       }}
     >
-      {/* HEADER */}
-      <Stack
-        alignItems="center"
-        justifyContent="center"
-        spacing={0.3}
-      >
+      {/* ================= HEADER ================= */}
+      <Stack alignItems="flex-start" spacing={0}>
         <Typography
           sx={{
-            fontSize: "18px",
+            fontSize: "15px",
             fontWeight: 800,
             color: "#0A1128",
-            textAlign: "center",
+            textAlign: "left",
+            py: 1,
           }}
         >
           Ticket Distribution
         </Typography>
-
-        <Typography
-          sx={{
-            fontSize: "12px",
-            color: "#64748b",
-          }}
-        >
-          Till Date
-        </Typography>
       </Stack>
 
-      {/* CHART */}
+      {/* ================= CHART ================= */}
       <Box
         sx={{
           height: {
-            xs: 300,
-            sm: 340,
-            md: 380,
+            xs: 250,
+            sm: 280,
+            md: 240,
           },
-
           position: "relative",
-
-          flexShrink: 0,
         }}
       >
-        <ResponsiveContainer
-          width="100%"
-          height="100%"
-        >
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={pieData}
               dataKey="value"
               cx="50%"
               cy="50%"
-              innerRadius={75}
-              outerRadius={115}
-              paddingAngle={2}
-              cornerRadius={5}
+              innerRadius={65}
+              outerRadius={95}
+              paddingAngle={1}
+              cornerRadius={4}
               labelLine={false}
-              label={({ percent }) =>
-                percent > 0.08
-                  ? `${(
-                      percent * 100
-                    ).toFixed(1)}%`
-                  : ""
-              }
+              isAnimationActive={false} // 👈 prevents weird hover boxes
+              activeIndex={-1} // ✅ IMPORTANT: disables selected slice highlight
+              activeShape={null} // ✅ removes black box / outline
             >
-              {pieData.map(
-                (entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={
-                      COLORS[
-                        index %
-                          COLORS.length
-                      ]
-                    }
-                  />
-                )
-              )}
+              {pieData.map((entry, index) => (
+                <Cell key={index} fill={COLORS[index % COLORS.length]}
+                      stroke="none"   // ✅ removes border box on click
+ />
+              ))}
             </Pie>
 
             <Tooltip />
           </PieChart>
         </ResponsiveContainer>
 
-        {/* CENTER CONTENT */}
+        {/* ================= CENTER ================= */}
         <Box
           sx={{
             position: "absolute",
@@ -155,16 +101,16 @@ const TicketDistribution = ({
             top: "50%",
             left: "50%",
 
-            transform:
-              "translate(-50%, -50%)",
+            transform: "translate(-50%, -50%)",
 
             textAlign: "center",
           }}
         >
           <Typography
             sx={{
-              fontSize: "12px",
+              fontSize: "11px",
               color: "#64748b",
+              lineHeight: 1,
             }}
           >
             Total
@@ -174,7 +120,7 @@ const TicketDistribution = ({
             sx={{
               fontSize: {
                 xs: "24px",
-                md: "30px",
+                md: "28px",
               },
 
               fontWeight: 800,
@@ -189,8 +135,9 @@ const TicketDistribution = ({
 
           <Typography
             sx={{
-              fontSize: "12px",
+              fontSize: "11px",
               color: "#64748b",
+              lineHeight: 1,
             }}
           >
             Tickets
@@ -198,16 +145,18 @@ const TicketDistribution = ({
         </Box>
       </Box>
 
-      {/* LEGEND */}
+      {/* ================= LEGEND ================= */}
       <Stack
-        spacing={1}
+        // spacing={0.7} // ✅ reduced vertical spacing
         sx={{
-          maxHeight: 320,
+          maxHeight: 260,
           overflowY: "auto",
           pr: 0.5,
+
           "&::-webkit-scrollbar": {
             width: "4px",
           },
+
           "&::-webkit-scrollbar-thumb": {
             background: "#CBD5E1",
             borderRadius: "10px",
@@ -217,24 +166,21 @@ const TicketDistribution = ({
         {pieData.map((item, index) => {
           const percentage =
             totalTickets > 0
-              ? (
-                  (item.value /
-                    totalTickets) *
-                  100
-                ).toFixed(1)
+              ? ((item.value / totalTickets) * 100).toFixed(1)
               : 0;
 
           return (
             <Box
               key={index}
               sx={{
-                p: 1,
-                borderRadius: "12px",
-                background:
-                  "rgba(248,250,252,0.7)",
+                px: 1.2,
+                py: 0.8,
 
-                border:
-                  "1px solid #f1f5f9",
+                borderRadius: "10px",
+
+                background: "rgba(248,250,252,0.7)",
+
+                border: "1px solid #f1f5f9",
               }}
             >
               <Stack
@@ -243,7 +189,7 @@ const TicketDistribution = ({
                 justifyContent="space-between"
                 spacing={1}
               >
-                {/* LEFT */}
+                {/* ================= LEFT ================= */}
                 <Stack
                   direction="row"
                   spacing={1}
@@ -255,54 +201,52 @@ const TicketDistribution = ({
                 >
                   <Box
                     sx={{
-                      width: 10,
-                      height: 10,
+                      width: 9,
+                      height: 9,
 
                       borderRadius: "50%",
 
-                      bgcolor:
-                        COLORS[
-                          index %
-                            COLORS.length
-                        ],
+                      bgcolor: COLORS[index % COLORS.length],
 
                       flexShrink: 0,
                     }}
                   />
 
+                  {/* ✅ NAME + TOTAL */}
                   <Typography
                     sx={{
                       fontSize: "12px",
 
                       color: "#0f172a",
 
+                      fontWeight: 600,
+
                       overflow: "hidden",
 
-                      textOverflow:
-                        "ellipsis",
+                      textOverflow: "ellipsis",
 
-                      whiteSpace:
-                        "nowrap",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {item.name}
                   </Typography>
                 </Stack>
 
-                {/* RIGHT */}
+                {/* ================= RIGHT ================= */}
                 <Typography
                   sx={{
-                    fontSize: "12px",
+                    fontSize: "11px",
 
                     fontWeight: 700,
 
-                    color: "#0f172a",
+                    color: "#2563EB",
 
-                    whiteSpace: "nowrap",
+                    minWidth: 45,
+
+                    textAlign: "right",
                   }}
                 >
-                  {item.value} (
-                  {percentage}%)
+                  {item.value}
                 </Typography>
               </Stack>
             </Box>

@@ -12,7 +12,8 @@ const StatCard = ({ title, value, color, icon, trend }) => {
         position: "relative",
         overflow: "hidden",
         height: "auto",
-        minHeight: 130,
+        m:1,
+        minHeight: 100,
         px: 2,
         borderRadius: "24px",
         background: `linear-gradient(
@@ -21,7 +22,7 @@ const StatCard = ({ title, value, color, icon, trend }) => {
       ${color}08 45%,
       #ffffff 100%
     )`,
-        border: `1px solid ${color}18`,
+        border: `2px solid ${color}18`,
         transition: "all 0.3s ease",
         boxShadow: "0 10px 30px rgba(0,0,0,0.04)",
         display: "flex",

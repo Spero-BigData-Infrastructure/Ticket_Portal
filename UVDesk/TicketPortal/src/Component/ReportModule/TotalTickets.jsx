@@ -123,7 +123,6 @@ export default function TotalTickets() {
                     backgroundColor: item.bg,
                     color: item.color,
                     flexShrink: 0,
-
                     "& svg": {
                       fontSize: 22,
                     },

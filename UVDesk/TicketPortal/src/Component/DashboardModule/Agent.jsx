@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-
 import {
   Paper,
   Stack,
@@ -7,15 +6,14 @@ import {
   Typography,
   Box,
   TextField,
-  InputAdornment,
 } from "@mui/material";
-
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {
   FolderOpen,
   PendingActions,
   CheckCircle,
   Lock,
-  Search,
 } from "@mui/icons-material";
 
 const colors = [
@@ -27,6 +25,7 @@ const colors = [
   "#ff2d78",
 ];
 
+/* ---------------- CARD ---------------- */
 const TicketTypeCard = ({ item, tabValue, index }) => {
   const currentKey =
     tabValue === 0 ? "today" : tabValue === 1 ? "this_month" : "till_date";
@@ -44,409 +43,233 @@ const TicketTypeCard = ({ item, tabValue, index }) => {
     <Paper
       elevation={0}
       sx={{
-        overflow: "hidden",
-        background: "#fff",
-        border: "1px solid #EFEFEF",
-        borderRadius: "18px",
-        p: 1.2,
-        height: "100%",
-        minHeight: 230,
-        transition: "all 0.3s ease",
-        boxShadow: "0 4px 20px rgba(15, 23, 42, 0.04)",
-
+        borderRadius: "16px",
+        border: "1px solid #E2E8F0",
+        p: 1.5,
+        minHeight: 220,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        transition: "0.2s",
         "&:hover": {
-          transform: "translateY(-5px)",
-          boxShadow: "0 14px 35px rgba(15, 23, 42, 0.08)",
+          transform: "translateY(-3px)",
+          boxShadow: "0 10px 20px rgba(0,0,0,0.05)",
         },
       }}
     >
+      {/* AVATAR CENTER */}
       <Stack
-        spacing={1.2}
         alignItems="center"
-        justifyContent="center"
+        spacing={0.5}
         sx={{
           width: "100%",
           textAlign: "center",
-          height: "100%",
         }}
       >
-        {/* AVATAR CENTER */}
+        {/* AVATAR WRAPPER (forces perfect center) */}
         <Box
           sx={{
             width: "100%",
             display: "flex",
             justifyContent: "center",
-            alignItems: "center",
           }}
         >
           <Avatar
             sx={{
-              width: 50,
-              height: 50,
-              bgcolor: `${color}20`,
+              width: 48,
+              height: 48,
+              bgcolor: `${color}15`,
               color: color,
-              fontSize: "16px",
               fontWeight: 800,
-              boxShadow: `0 8px 20px ${color}25`,
+              fontSize: 14,
             }}
           >
             {shortName}
           </Avatar>
         </Box>
 
-        {/* NAME */}
-        <Box
+        <Typography
           sx={{
-            width: "100%",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#111827",
             textAlign: "center",
           }}
         >
-          <Typography
-            sx={{
-              fontSize: "14px",
-              fontWeight: 700,
-              color: "#1A1D20",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {item.agent_name || "Unassigned"}
-          </Typography>
+          {item.agent_name || "Unassigned"}
+        </Typography>
 
-          <Typography
-            sx={{
-              mt: 0.2,
-              fontSize: "11px",
-              color: "#6C757D",
-            }}
-          >
-            Support Agent
-          </Typography>
-        </Box>
-
-        {/* STATUS */}
-        <Box
-          sx={{
-            width: "100%",
-            display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0,1fr))",
-            gap: 0.8,
-            mt: 0.5,
-          }}
-        >
-          {/* OPEN */}
-          <Stack spacing={0.4} alignItems="center">
-            <FolderOpen
-              sx={{
-                fontSize: 16,
-                color: "#1877F2",
-              }}
-            />
-
-            <Typography
-              sx={{
-                fontSize: "15px",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-            >
-              {item.open?.[currentKey] || 0}
-            </Typography>
-
-            <Typography
-              sx={{
-                fontSize: "10px",
-                color: "#6C757D",
-              }}
-            >
-              Open
-            </Typography>
-          </Stack>
-
-          {/* PENDING */}
-          <Stack spacing={0.4} alignItems="center">
-            <PendingActions
-              sx={{
-                fontSize: 16,
-                color: "#FF922B",
-              }}
-            />
-
-            <Typography
-              sx={{
-                fontSize: "15px",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-            >
-              {item.pending?.[currentKey] || 0}
-            </Typography>
-
-            <Typography
-              sx={{
-                fontSize: "10px",
-                color: "#6C757D",
-              }}
-            >
-              Pending
-            </Typography>
-          </Stack>
-
-          {/* RESOLVED */}
-          <Stack spacing={0.4} alignItems="center">
-            <CheckCircle
-              sx={{
-                fontSize: 16,
-                color: "#2EA44F",
-              }}
-            />
-
-            <Typography
-              sx={{
-                fontSize: "15px",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-            >
-              {item.resolved?.[currentKey] || 0}
-            </Typography>
-
-            <Typography
-              sx={{
-                fontSize: "10px",
-                color: "#6C757D",
-              }}
-            >
-              Resolved
-            </Typography>
-          </Stack>
-
-          {/* CLOSED */}
-          <Stack spacing={0.4} alignItems="center">
-            <Lock
-              sx={{
-                fontSize: 16,
-                color: "#7952B3",
-              }}
-            />
-
-            <Typography
-              sx={{
-                fontSize: "15px",
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-            >
-              {item.closed?.[currentKey] || 0}
-            </Typography>
-
-            <Typography
-              sx={{
-                fontSize: "10px",
-                color: "#6C757D",
-              }}
-            >
-              Closed
-            </Typography>
-          </Stack>
-        </Box>
-
-        {/* TOTAL CENTER */}
-        <Box
-          sx={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            mt: 0.5,
-          }}
-        >
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            justifyContent="center"
-          >
-            <Typography
-              sx={{
-                fontSize: "12px",
-                fontWeight: 600,
-              }}
-            >
-              Total
-            </Typography>
-
-            <Box
-              sx={{
-                px: 1.5,
-                borderRadius: "20px",
-                background: `linear-gradient(
-            135deg,
-            ${color} 0%,
-            ${color}DD 100%
-          )`,
-
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: 800,
-                boxShadow: `0 8px 18px ${color}35`,
-              }}
-            >
-              {item.total_tickets || 0}
-            </Box>
-          </Stack>
-        </Box>
+        <Typography sx={{ fontSize: 10, color: "#6B7280" }}>
+          Support Agent
+        </Typography>
       </Stack>
+
+      {/* STATUS */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 0.5,
+          mt: 1.5,
+          textAlign: "center",
+        }}
+      >
+        {[
+          {
+            icon: <FolderOpen />,
+            label: "Open",
+            value: item.open?.[currentKey],
+            color: "#1877F2",
+          },
+          {
+            icon: <PendingActions />,
+            label: "Pending",
+            value: item.pending?.[currentKey],
+            color: "#FF922B",
+          },
+          {
+            icon: <CheckCircle />,
+            label: "Resolved",
+            value: item.resolved?.[currentKey],
+            color: "#2EA44F",
+          },
+          {
+            icon: <Lock />,
+            label: "Closed",
+            value: item.closed?.[currentKey],
+            color: "#7952B3",
+          },
+        ].map((s, i) => (
+          <Stack key={i} alignItems="center">
+            <Box sx={{ color: s.color, fontSize: 16 }}>{s.icon}</Box>
+            <Typography sx={{ fontSize: 13, fontWeight: 800 }}>
+              {s.value || 0}
+            </Typography>
+            <Typography sx={{ fontSize: 10, color: "#6B7280" }}>
+              {s.label}
+            </Typography>
+          </Stack>
+        ))}
+      </Box>
+
+      {/* TOTAL */}
+      <Box sx={{ mt: 1.5, textAlign: "center" }}>
+        <Typography sx={{ fontSize: 12, fontWeight: 700 }}>
+          Total: {item.total_tickets || 0}
+        </Typography>
+      </Box>
     </Paper>
   );
 };
 
+/* ---------------- MAIN ---------------- */
 export default function AgentsWiseCards({ agentData = [], tabValue = 0 }) {
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const filteredAgents = useMemo(() => {
-    return agentData.filter((agent) =>
-      (agent.agent_name || "Unassigned")
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+    return agentData.filter((a) =>
+      (a.agent_name || "").toLowerCase().includes(search.toLowerCase()),
     );
   }, [agentData, search]);
+
+  // 👉 ONLY 2 ROWS INITIALLY
+  const visibleAgents = showAll ? filteredAgents : filteredAgents.slice(0, 4); // 2 rows approx (grid)
 
   return (
     <Paper
       elevation={0}
       sx={{
-        borderRadius: "24px",
-        border: "1px solid #eef2f7",
-        background: "#fff",
-        boxShadow: "0 10px 30px rgba(15, 23, 42, 0.05)",
-        p: 1.2,
-        minHeight: 200,
-        height: {
-          xs: "auto",
-          md: 800,
-        },
-
+        borderRadius: "20px",
+        border: "1px solid #E2E8F0",
+        p: 2,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      {/* HEADER */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={2}
-        gap={2}
-       
-      >
-        <Box>
-          <Typography
+      {/* HEADER ROW (TITLE + SEARCH SAME LINE) */}
+      <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+        {/* LEFT TITLE */}
+        <Typography sx={{ fontSize: 15, fontWeight: 800 }}>
+          Agent Wise Tickets
+        </Typography>
+
+        {/* RIGHT SEARCH */}
+        <Box sx={{ ml: "auto" }}>
+          <TextField
+            size="small"
+            placeholder="Search agent..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             sx={{
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "#0A1128",
+              width: 220,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                background: "#F8FAFC",
+                fontSize: 13,
+              },
             }}
-          >
-            Agent Wise Tickets
-          </Typography>
+          />
         </Box>
-
-        {/* SEARCH */}
-        <TextField
-          placeholder="Search agent..."
-          size="small"
-          variant="outlined"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          sx={{
-            padding:1,
-            ml: "auto",
-            width: {
-              xs: "100%",
-              sm: 220,
-            },
-
-            "& .MuiOutlinedInput-root": {
-              height: 36,
-              borderRadius: "10px",
-              background: "#F5F7FB",
-
-              pr: 1,
-
-              "& fieldset": {
-                borderColor: "#E2E8F0",
-              },
-
-              "&:hover fieldset": {
-                borderColor: "#CBD5E1",
-              },
-
-              "&.Mui-focused fieldset": {
-                borderColor: "#94A3B8",
-              },
-            },
-
-            "& .MuiInputBase-input": {
-              fontSize: "13px",
-              color: "#475569",
-              py: 0.8,
-            },
-
-            "& .MuiInputBase-input::placeholder": {
-              color: "#94A3B8",
-              opacity: 1,
-            },
-          }}
-        />
       </Stack>
 
-      {/* SCROLLABLE GRID */}
-      <Box
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          pr: 1,
-
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
-
-          "&::-webkit-scrollbar-thumb": {
-            background: "#CBD5E1",
-            borderRadius: "10px",
-          },
-
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-          },
-        }}
+      {/* VIEW ALL RIGHT SIDE */}
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        alignItems="center"
+        sx={{ mt: 1 }}
       >
         <Box
+          onClick={() => setShowAll(!showAll)}
           sx={{
-            display: "grid",
-
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(2, 1fr)",
-              lg: "repeat(3, 1fr)",
-              xl: "repeat(4, 1fr)",
-            },
-
-            gap: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5, // 👈 arrow + text spacing
+            cursor: "pointer",
+            fontSize: 12,
+            color: "#64748B",
+            fontWeight: 600,
+            userSelect: "none",
+            "&:hover": { color: "#334155" },
           }}
         >
-          {filteredAgents.map((item, index) => (
-            <TicketTypeCard
-              key={index}
-              item={item}
-              index={index}
-              tabValue={tabValue}
-            />
-          ))}
+          {showAll ? (
+            <>
+              <ExpandLessIcon sx={{ fontSize: 16 }} />
+              Show Less
+            </>
+          ) : (
+            <>
+              <ExpandMoreIcon sx={{ fontSize: 16 }} />
+              View All Agents
+            </>
+          )}
         </Box>
+      </Stack>
+
+      {/* GRID */}
+      <Box
+        sx={{
+          mt: 1.5,
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2,1fr)",
+            lg: "repeat(3,1fr)",
+            xl: "repeat(4,1fr)",
+          },
+          gap: 2,
+        }}
+      >
+        {visibleAgents.map((item, index) => (
+          <TicketTypeCard
+            key={index}
+            item={item}
+            index={index}
+            tabValue={tabValue}
+          />
+        ))}
       </Box>
     </Paper>
   );

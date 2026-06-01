@@ -30,7 +30,6 @@ app.add_middleware(
 async def startup():
     await database.connect()
 
-
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
@@ -71,979 +70,1092 @@ def make_hash(data: dict):
     ).hexdigest()
 ###############################################################################################
 
-@app.websocket("/ws/uvdesk_dashboard")
-async def dashboard_ws(websocket: WebSocket):
+# @app.websocket("/ws/uvdesk_dashboard")
+# async def dashboard_ws(websocket: WebSocket):
 
-    await websocket.accept()
+#     await websocket.accept()
 
-    last_hash = None
+#     last_hash = None
 
-    try:
-        while True:
+#     try:
+#         while True:
 
-            status_data = await cached_query(
-                """
-                SELECT 
-                    CASE 
-                        WHEN status_id = 1 THEN 'Open'
-                        WHEN status_id = 2 THEN 'Pending'
-                        WHEN status_id = 3 THEN 'Answered'
-                        WHEN status_id = 4 THEN 'Resolved'
-                        WHEN status_id = 5 THEN 'Closed'
-                    END AS status,
+#             status_data = await cached_query(
+#                 """
+#                 SELECT 
+#                     CASE 
+#                         WHEN status_id = 1 THEN 'Open'
+#                         WHEN status_id = 2 THEN 'Pending'
+#                         WHEN status_id = 3 THEN 'Answered'
+#                         WHEN status_id = 4 THEN 'Resolved'
+#                         WHEN status_id = 5 THEN 'Closed'
+#                     END AS status,
 
-                    SUM(
-                        CASE 
-                            WHEN DATE(created_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS today,
+#                     SUM(
+#                         CASE 
+#                             WHEN DATE(created_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS today,
 
-                    SUM(
-                        CASE
-                            WHEN MONTH(created_at) = MONTH(CURDATE())
-                            AND YEAR(created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS this_month,
+#                     SUM(
+#                         CASE
+#                             WHEN MONTH(created_at) = MONTH(CURDATE())
+#                             AND YEAR(created_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS this_month,
 
-                    COUNT(*) AS till_date
+#                     COUNT(*) AS till_date
 
-                FROM uv_ticket
+#                 FROM uv_ticket
 
-                WHERE is_trashed != 1
+#                 WHERE is_trashed != 1
 
-                GROUP BY status_id
-                ORDER BY status_id
-                """,
-                fetch="all"
-            )
+#                 GROUP BY status_id
+#                 ORDER BY status_id
+#                 """,
+#                 fetch="all"
+#             )
 
         
-            ticket_type_summary = await cached_query(
-                """
-                SELECT 
-                    tt.code AS ticket_type,
+#             ticket_type_summary = await cached_query(
+#                 """
+#                 SELECT 
+#                     tt.code AS ticket_type,
 
-                    SUM(
-                        CASE 
-                            WHEN DATE(t.created_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS today,
+#                     SUM(
+#                         CASE 
+#                             WHEN DATE(t.created_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS today,
 
-                    SUM(
-                        CASE
-                            WHEN MONTH(t.created_at) = MONTH(CURDATE())
-                            AND YEAR(t.created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS this_month,
+#                     SUM(
+#                         CASE
+#                             WHEN MONTH(t.created_at) = MONTH(CURDATE())
+#                             AND YEAR(t.created_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS this_month,
 
-                    COUNT(*) AS till_date
+#                     COUNT(*) AS till_date
 
-                FROM uv_ticket t
+#                 FROM uv_ticket t
 
-                LEFT JOIN uv_ticket_type tt
-                ON t.type_id = tt.id
+#                 LEFT JOIN uv_ticket_type tt
+#                 ON t.type_id = tt.id
 
-                WHERE t.is_trashed != 1
+#                 WHERE t.is_trashed != 1
 
-                GROUP BY tt.code
-                ORDER BY tt.code
-                """,
-                fetch="all"
-            )
+#                 GROUP BY tt.code
+#                 ORDER BY tt.code
+#                 """,
+#                 fetch="all"
+#             )
 
-            # FORMAT STATUS DATA
-            formatted_status = {}
+#             # FORMAT STATUS DATA
+#             formatted_status = {}
 
-            for row in status_data:
+#             for row in status_data:
 
-                status_name = str(row["status"]).lower()
+#                 status_name = str(row["status"]).lower()
 
-                formatted_status[f"{status_name}_tickets"] = {
+#                 formatted_status[f"{status_name}_tickets"] = {
 
-                    "today": int(row["today"] or 0),
+#                     "today": int(row["today"] or 0),
 
-                    "this_month": int(row["this_month"] or 0),
+#                     "this_month": int(row["this_month"] or 0),
 
-                    "till_date": int(row["till_date"] or 0)
-                }
+#                     "till_date": int(row["till_date"] or 0)
+#                 }
 
-            #  FORMAT TICKET TYPES
-            formatted_ticket_types = []
+#             #  FORMAT TICKET TYPES
+#             formatted_ticket_types = []
 
-            for row in ticket_type_summary or []:
+#             for row in ticket_type_summary or []:
 
-                formatted_ticket_types.append({
+#                 formatted_ticket_types.append({
 
-                    "ticket_type": str(row["ticket_type"] or ""),
+#                     "ticket_type": str(row["ticket_type"] or ""),
 
-                    "today": int(row["today"] or 0),
+#                     "today": int(row["today"] or 0),
 
-                    "this_month": int(row["this_month"] or 0),
+#                     "this_month": int(row["this_month"] or 0),
 
-                    "till_date": int(row["till_date"] or 0)
+#                     "till_date": int(row["till_date"] or 0)
 
-                })
+#                 })
 
-            # FINAL RESPONSE
-            data = {
+#             # FINAL RESPONSE
+#             data = {
 
-                **formatted_status,
+#                 **formatted_status,
 
-                "ticket_type_summary": formatted_ticket_types
+#                 "ticket_type_summary": formatted_ticket_types
 
-            }
+#             }
 
-            # CHANGE DETECTION
-            current_hash = make_hash(data)
+#             # CHANGE DETECTION
+#             current_hash = make_hash(data)
 
-            if current_hash != last_hash:
+#             if current_hash != last_hash:
 
-                await websocket.send_text(
-                    json.dumps(data, default=str)
-                )
+#                 await websocket.send_text(
+#                     json.dumps(data, default=str)
+#                 )
 
-                last_hash = current_hash
+#                 last_hash = current_hash
 
-                print("Dashboard updated")
+#                 print("Dashboard updated")
 
-            else:
-                print("No changes")
+#             else:
+#                 print("No changes")
 
            
-            await asyncio.sleep(5)
+#             await asyncio.sleep(5)
 
-    except WebSocketDisconnect:
+#     except WebSocketDisconnect:
 
-        print("Client disconnected")
+#         print("Client disconnected")
 
-    except Exception as e:
+#     except Exception as e:
 
-        print(" WebSocket Error:", str(e))
-######################################################################################################
-@app.websocket("/ws/agent-summary")
-async def agent_summary_ws(websocket: WebSocket):
+#         print(" WebSocket Error:", str(e))
+# ######################################################################################################
+# @app.websocket("/ws/agent-summary")
+# async def agent_summary_ws(websocket: WebSocket):
 
-    await websocket.accept()
+#     await websocket.accept()
 
-    last_hash = None
+#     last_hash = None
 
-    try:
-        while True:
+#     try:
+#         while True:
 
             
-            agent_summary = await cached_query(
-                """
-                SELECT 
+#             agent_summary = await cached_query(
+#                 """
+#                 SELECT 
 
-                    CONCAT(u.first_name,' ',u.last_name) AS agent_name,
+#                     CONCAT(u.first_name,' ',u.last_name) AS agent_name,
 
-                    -- OPEN
-                    SUM(
-                        CASE 
-                            WHEN t.status_id = 1
-                            AND DATE(t.created_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS open_today,
+#                     -- OPEN
+#                     SUM(
+#                         CASE 
+#                             WHEN t.status_id = 1
+#                             AND DATE(t.created_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS open_today,
 
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 1
-                            AND MONTH(t.created_at) = MONTH(CURDATE())
-                            AND YEAR(t.created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS open_this_month,
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 1
+#                             AND MONTH(t.created_at) = MONTH(CURDATE())
+#                             AND YEAR(t.created_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS open_this_month,
 
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 1
-                            THEN 1 ELSE 0
-                        END
-                    ) AS open_till_date,
-
-
-                    -- PENDING
-                    SUM(
-                        CASE 
-                            WHEN t.status_id = 2
-                            AND DATE(t.created_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS pending_today,
-
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 2
-                            AND MONTH(t.created_at) = MONTH(CURDATE())
-                            AND YEAR(t.created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS pending_this_month,
-
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 2
-                            THEN 1 ELSE 0
-                        END
-                    ) AS pending_till_date,
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 1
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS open_till_date,
 
 
-                    -- RESOLVED
-                    SUM(
-                        CASE 
-                            WHEN t.status_id = 4
-                            AND DATE(t.updated_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS resolved_today,
+#                     -- PENDING
+#                     SUM(
+#                         CASE 
+#                             WHEN t.status_id = 2
+#                             AND DATE(t.created_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS pending_today,
 
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 4
-                            AND MONTH(t.updated_at) = MONTH(CURDATE())
-                            AND YEAR(t.updated_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS resolved_this_month,
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 2
+#                             AND MONTH(t.created_at) = MONTH(CURDATE())
+#                             AND YEAR(t.created_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS pending_this_month,
 
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 4
-                            THEN 1 ELSE 0
-                        END
-                    ) AS resolved_till_date,
-
-
-                    -- CLOSED
-                    SUM(
-                        CASE 
-                            WHEN t.status_id = 5
-                            AND DATE(t.updated_at) = CURDATE()
-                            THEN 1 ELSE 0
-                        END
-                    ) AS closed_today,
-
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 5
-                            AND MONTH(t.updated_at) = MONTH(CURDATE())
-                            AND YEAR(t.updated_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
-                        END
-                    ) AS closed_this_month,
-
-                    SUM(
-                        CASE
-                            WHEN t.status_id = 5
-                            THEN 1 ELSE 0
-                        END
-                    ) AS closed_till_date,
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 2
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS pending_till_date,
 
 
-                    COUNT(t.id) AS total_tickets
+#                     -- RESOLVED
+#                     SUM(
+#                         CASE 
+#                             WHEN t.status_id = 4
+#                             AND DATE(t.updated_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS resolved_today,
 
-                FROM uv_ticket t
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 4
+#                             AND MONTH(t.updated_at) = MONTH(CURDATE())
+#                             AND YEAR(t.updated_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS resolved_this_month,
 
-                LEFT JOIN uv_user u
-                ON t.agent_id = u.id
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 4
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS resolved_till_date,
 
-                WHERE t.is_trashed != 1
 
-                GROUP BY t.agent_id
+#                     -- CLOSED
+#                     SUM(
+#                         CASE 
+#                             WHEN t.status_id = 5
+#                             AND DATE(t.updated_at) = CURDATE()
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS closed_today,
 
-                ORDER BY agent_name
-                """,
-                fetch="all"
-            )
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 5
+#                             AND MONTH(t.updated_at) = MONTH(CURDATE())
+#                             AND YEAR(t.updated_at) = YEAR(CURDATE())
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS closed_this_month,
 
-            #  FORMAT RESPONSE
-            formatted_data = []
+#                     SUM(
+#                         CASE
+#                             WHEN t.status_id = 5
+#                             THEN 1 ELSE 0
+#                         END
+#                     ) AS closed_till_date,
 
-            for row in agent_summary or []:
 
-                formatted_data.append({
+#                     COUNT(t.id) AS total_tickets
 
-                    "agent_name": str(row["agent_name"] or ""),
+#                 FROM uv_ticket t
 
-                    "open": {
-                        "today": int(row["open_today"] or 0),
-                        "this_month": int(row["open_this_month"] or 0),
-                        "till_date": int(row["open_till_date"] or 0),
-                    },
+#                 LEFT JOIN uv_user u
+#                 ON t.agent_id = u.id
 
-                    "pending": {
-                        "today": int(row["pending_today"] or 0),
-                        "this_month": int(row["pending_this_month"] or 0),
-                        "till_date": int(row["pending_till_date"] or 0),
-                    },
+#                 WHERE t.is_trashed != 1
 
-                    "resolved": {
-                        "today": int(row["resolved_today"] or 0),
-                        "this_month": int(row["resolved_this_month"] or 0),
-                        "till_date": int(row["resolved_till_date"] or 0),
-                    },
+#                 GROUP BY t.agent_id
 
-                    "closed": {
-                        "today": int(row["closed_today"] or 0),
-                        "this_month": int(row["closed_this_month"] or 0),
-                        "till_date": int(row["closed_till_date"] or 0),
-                    },
+#                 ORDER BY agent_name
+#                 """,
+#                 fetch="all"
+#             )
 
-                    "total_tickets": int(row["total_tickets"] or 0)
+#             #  FORMAT RESPONSE
+#             formatted_data = []
 
-                })
+#             for row in agent_summary or []:
 
-            data = {
-                "agent_wise_ticket_summary": formatted_data
-            }
+#                 formatted_data.append({
 
-            # 🔥 CHANGE DETECTION
-            current_hash = make_hash(data)
+#                     "agent_name": str(row["agent_name"] or ""),
 
-            if current_hash != last_hash:
+#                     "open": {
+#                         "today": int(row["open_today"] or 0),
+#                         "this_month": int(row["open_this_month"] or 0),
+#                         "till_date": int(row["open_till_date"] or 0),
+#                     },
 
-                await websocket.send_text(
-                    json.dumps(data, default=str)
-                )
+#                     "pending": {
+#                         "today": int(row["pending_today"] or 0),
+#                         "this_month": int(row["pending_this_month"] or 0),
+#                         "till_date": int(row["pending_till_date"] or 0),
+#                     },
 
-                last_hash = current_hash
+#                     "resolved": {
+#                         "today": int(row["resolved_today"] or 0),
+#                         "this_month": int(row["resolved_this_month"] or 0),
+#                         "till_date": int(row["resolved_till_date"] or 0),
+#                     },
 
-                print("📡 Agent summary updated")
+#                     "closed": {
+#                         "today": int(row["closed_today"] or 0),
+#                         "this_month": int(row["closed_this_month"] or 0),
+#                         "till_date": int(row["closed_till_date"] or 0),
+#                     },
 
-            else:
-                print("⏸ No changes")
+#                     "total_tickets": int(row["total_tickets"] or 0)
 
-            await asyncio.sleep(5)
+#                 })
 
-    except WebSocketDisconnect:
-        print("❌ Client disconnected")
+#             data = {
+#                 "agent_wise_ticket_summary": formatted_data
+#             }
 
-    except Exception as e:
-        print("❌ WebSocket Error:", str(e))
+#             # 🔥 CHANGE DETECTION
+#             current_hash = make_hash(data)
 
-###############################################################################
-@app.post("/api/uvdesk-master-report")
-async def uvdesk_master_report(payload: dict = Body({})):
+#             if current_hash != last_hash:
+
+#                 await websocket.send_text(
+#                     json.dumps(data, default=str)
+#                 )
+
+#                 last_hash = current_hash
+
+#                 print("📡 Agent summary updated")
+
+#             else:
+#                 print("⏸ No changes")
+
+#             await asyncio.sleep(5)
+
+#     except WebSocketDisconnect:
+#         print("❌ Client disconnected")
+
+#     except Exception as e:
+#         print("❌ WebSocket Error:", str(e))
+
+# ###############################################################################
+# @app.post("/api/uvdesk-master-report")
+# async def uvdesk_master_report(payload: dict = Body({})):
+
+#     try:
+
+#         # =====================================================
+#         # GET FILTERS FROM PAYLOAD
+#         # =====================================================
+
+#         from_date = payload.get("from_date")
+#         to_date = payload.get("to_date")
+
+#         # =====================================================
+#         # DEFAULT CURRENT MONTH FILTER
+#         # =====================================================
+
+#         if not from_date or not to_date:
+
+#             current_date = datetime.now()
+
+#             from_date = current_date.strftime("%Y-%m-01")
+
+#             to_date = current_date.strftime("%Y-%m-%d")
+
+#         # =====================================================
+#         # DATE FILTER
+#         # =====================================================
+
+#         date_filter = f"""
+#         AND DATE(t.created_at)
+#         BETWEEN '{from_date}' AND '{to_date}'
+#         """
+
+#         # =====================================================
+#         # AGENT SUMMARY
+#         # =====================================================
+
+#         agent_query = f"""
+#         SELECT 
+
+#             CONCAT(u.first_name,' ',u.last_name) AS agent_name,
+
+#             SUM(
+#                 CASE 
+#                     WHEN t.status_id = 1 
+#                     THEN 1 ELSE 0 
+#                 END
+#             ) AS open_count,
+
+#             SUM(
+#                 CASE 
+#                     WHEN t.status_id = 2 
+#                     THEN 1 ELSE 0 
+#                 END
+#             ) AS pending_count,
+
+#             SUM(
+#                 CASE 
+#                     WHEN t.status_id = 3 
+#                     THEN 1 ELSE 0 
+#                 END
+#             ) AS answered_count,
+
+#             SUM(
+#                 CASE 
+#                     WHEN t.status_id = 4 
+#                     THEN 1 ELSE 0 
+#                 END
+#             ) AS resolved_count,
+
+#             SUM(
+#                 CASE 
+#                     WHEN t.status_id = 5 
+#                     THEN 1 ELSE 0 
+#                 END
+#             ) AS closed_count,
+
+#             COUNT(t.id) AS total_tickets
+
+#         FROM uv_ticket t
+
+#         LEFT JOIN uv_user u
+#         ON t.agent_id = u.id
+
+#         WHERE t.is_trashed != 1
+
+# #         {date_filter}
+
+# #         GROUP BY t.agent_id
+
+# #         ORDER BY agent_name ASC
+# #         """
+
+# #         agent_summary = await cached_query(
+# #             agent_query,
+# #             fetch="all"
+# #         )
+
+# #         # =====================================================
+# #         # TICKET MASTER REPORT
+# #         # =====================================================
+
+# #         ticket_query = f"""
+# #         SELECT 
+
+# #             CONCAT('#', t.id) AS ticket_id,
+
+# #             t.subject AS issue,
+
+# #             CONCAT(c.first_name,' ',c.last_name) AS added_by,
+
+# #             DATE_FORMAT(
+# #                 t.created_at,
+# #                 '%d/%m/%Y %H:%i'
+# #             ) AS added_date,
+
+# #             sg.name AS project,
+
+# #             ty.code AS type,
+
+# #             CONCAT(a.first_name,' ',a.last_name) AS assigned_to,
+
+# #             CASE 
+# #                 WHEN t.status_id = 1 THEN 'Open'
+# #                 WHEN t.status_id = 2 THEN 'Pending'
+# #                 WHEN t.status_id = 3 THEN 'Answered'
+# #                 WHEN t.status_id = 4 THEN 'Resolved'
+# #                 WHEN t.status_id = 5 THEN 'Closed'
+# #             END AS status,
+
+# #             DATE_FORMAT(
+# #                 t.updated_at,
+# #                 '%d/%m/%Y %H:%i'
+# #             ) AS updated_date,
+
+# #             CASE 
+# #                 WHEN t.status_id = 5
+# #                 THEN DATE_FORMAT(
+# #                     t.updated_at,
+# #                     '%d/%m/%Y %H:%i'
+# #                 )
+# #                 ELSE ''
+# #             END AS closed_date,
+
+# #             CASE 
+# #                 WHEN t.status_id = 5
+# #                 THEN DATEDIFF(
+# #                     t.updated_at,
+# #                     t.created_at
+# #                 )
+
+# #                 ELSE DATEDIFF(
+# #                     NOW(),
+# #                     t.created_at
+# #                 )
+# #             END AS sla_days,
+
+# #             ROUND(
+# #                 CASE 
+# #                     WHEN t.status_id = 5
+# #                     THEN TIMESTAMPDIFF(
+# #                         MINUTE,
+# #                         t.created_at,
+# #                         t.updated_at
+# #                     )
+
+# #                     ELSE TIMESTAMPDIFF(
+# #                         MINUTE,
+# #                         t.created_at,
+# #                         NOW()
+# #                     )
+# #                 END / 60,
+# #                 2
+# #             ) AS sla_hours
+
+# #         FROM uv_ticket t
+
+# #         LEFT JOIN uv_user c
+# #         ON t.customer_id = c.id
+
+# #         LEFT JOIN uv_user a
+# #         ON t.agent_id = a.id
+
+# #         LEFT JOIN uv_ticket_type ty
+# #         ON t.type_id = ty.id
+
+# #         LEFT JOIN uv_support_group sg
+# #         ON t.group_id = sg.id
+
+# #         WHERE t.is_trashed != 1
+
+# #         {date_filter}
+
+# #         GROUP BY t.id
+
+# #         ORDER BY t.id DESC
+# #         """
+
+# #         ticket_report = await cached_query(
+# #             ticket_query,
+# #             fetch="all"
+# #         )
+
+# #         # =====================================================
+# #         # FORMAT AGENT SUMMARY
+# #         # =====================================================
+
+# #         formatted_agents = []
+
+# #         for row in agent_summary or []:
+
+# #             formatted_agents.append({
+
+# #                 "agent_name": str(row["agent_name"] or ""),
+
+# #                 "open": int(row["open_count"] or 0),
+
+# #                 "pending": int(row["pending_count"] or 0),
+
+# #                 "answered": int(row["answered_count"] or 0),
+
+# #                 "resolved": int(row["resolved_count"] or 0),
+
+# #                 "closed": int(row["closed_count"] or 0),
+
+# #                 "total": int(row["total_tickets"] or 0)
+
+# #             })
+
+# #         # =====================================================
+# #         # FORMAT TICKET REPORT
+# #         # =====================================================
+
+# #         formatted_tickets = []
+
+# #         for row in ticket_report or []:
+
+# #             formatted_tickets.append({
+
+# #                 "ticket_id": str(row["ticket_id"] or ""),
+
+# #                 "issue": str(row["issue"] or ""),
+
+# #                 "added_by": str(row["added_by"] or ""),
+
+# #                 "added_date": str(row["added_date"] or ""),
+
+# #                 "project": str(row["project"] or ""),
+
+# #                 "type": str(row["type"] or ""),
+
+# #                 "assigned_to": str(row["assigned_to"] or ""),
+
+# #                 "status": str(row["status"] or ""),
+
+# #                 "updated_date": str(row["updated_date"] or ""),
+
+# #                 "closed_date": str(row["closed_date"] or ""),
+
+# #                 "sla_days": int(row["sla_days"] or 0),
+
+# #                 "sla_hours": float(row["sla_hours"] or 0)
+
+# #             })
+
+# #         # =====================================================
+# #         # FINAL RESPONSE
+# #         # =====================================================
+
+# #         return {
+
+# #             "report_name": "UVdesk Ticket Master Report",
+
+# #             "from_date": from_date,
+
+# #             "to_date": to_date,
+
+# #             "agent_wise_ticket_status_summary": formatted_agents,
+
+# #             "ticket_master_report": formatted_tickets
+
+# #         }
+
+# #     except Exception as e:
+
+# #         return {
+# #             "status": False,
+# #             "message": str(e)
+# #         }
+# # ####################################################################################################
+
+# # from collections import defaultdict
+# # from typing import Optional
+
+# # @app.post("/api/uvdesk-agent-ticket-details")
+# # async def uvdesk_agent_ticket_details(
+# #     sla: Optional[int] = None   # default = NO filter
+# # ):
+
+# #     # =====================================================
+# #     # GET ALL TICKETS (NO FILTER HERE)
+# #     # =====================================================
+# #     query = """
+# #     SELECT
+# #         t.id,
+# #         t.agent_id,
+# #         CONCAT(u.first_name, ' ', u.last_name) AS agent_name,
+
+# #         t.subject,
+# #         CONCAT(c.first_name, ' ', c.last_name) AS added_by,
+
+# #         DATE_FORMAT(t.created_at, '%d/%m/%Y %H:%i') AS added_date,
+# #         DATE_FORMAT(t.updated_at, '%d/%m/%Y %H:%i') AS updated_date,
+
+# #         sg.name AS project_name,
+# #         ty.code AS ticket_type,
+
+# #         t.status_id,
+
+# #         CASE
+# #             WHEN t.status_id = 1 THEN 'Open'
+# #             WHEN t.status_id = 2 THEN 'Pending'
+# #             WHEN t.status_id = 3 THEN 'Answered'
+# #             WHEN t.status_id = 4 THEN 'Resolved'
+# #             WHEN t.status_id = 5 THEN 'Closed'
+# #         END AS status,
+
+# #         CASE
+# #             WHEN t.status_id = 5
+# #             THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.updated_at) / 60
+# #             ELSE TIMESTAMPDIFF(MINUTE, t.created_at, NOW()) / 60
+# #         END AS sla_hours
+
+# #     FROM uv_ticket t
+# #     LEFT JOIN uv_user u ON t.agent_id = u.id
+# #     LEFT JOIN uv_user c ON t.customer_id = c.id
+# #     LEFT JOIN uv_ticket_type ty ON t.type_id = ty.id
+# #     LEFT JOIN uv_support_group sg ON t.group_id = sg.id
+
+# #     WHERE t.is_trashed != 1
+# #     """
+
+# #     rows = await database.fetch_all(query=query)
+
+# #     # =====================================================
+# #     # GROUPING
+# #     # =====================================================
+# #     agents = {}
+
+# #     for r in rows:
+# #         r = dict(r)
+# #         aid = r["agent_id"]
+
+# #         # -------------------------------
+# #         # SLA FILTER APPLIED HERE ONLY
+# #         # -------------------------------
+# #         if sla is not None and r["sla_hours"] <= sla:
+# #             continue
+
+# #         if aid not in agents:
+# #             agents[aid] = {
+# #                 "agent_id": aid,
+# #                 "agent_name": r["agent_name"],
+# #                 "summary": {
+# #                     "open": 0,
+# #                     "pending": 0,
+# #                     "answered": 0,
+# #                     "resolved": 0,
+# #                     "closed": 0,
+# #                     "active": 0,
+# #                     "total": 0
+# #                 },
+# #                 "tickets": []
+# #             }
+
+# #         # ================================
+# #         # SUMMARY CALCULATION
+# #         # ================================
+# #         if r["status_id"] == 1:
+# #             agents[aid]["summary"]["open"] += 1
+# #         elif r["status_id"] == 2:
+# #             agents[aid]["summary"]["pending"] += 1
+# #         elif r["status_id"] == 3:
+# #             agents[aid]["summary"]["answered"] += 1
+# #         elif r["status_id"] == 4:
+# #             agents[aid]["summary"]["resolved"] += 1
+# #         elif r["status_id"] == 5:
+# #             agents[aid]["summary"]["closed"] += 1
+
+# #         agents[aid]["summary"]["total"] += 1
+
+# #         agents[aid]["tickets"].append({
+# #             "ticket_id": f"#{r['id']}",
+# #             "issue": r["subject"],
+# #             "added_by": r["added_by"],
+# #             "added_date": r["added_date"],
+# #             "project": r["project_name"],
+# #             "type": r["ticket_type"],
+# #             "status": r["status"],
+# #             "updated_date": r["updated_date"],
+# #             "sla_hours": round(r["sla_hours"], 2)
+# #         })
+
+# #     # ================================
+# #     # ACTIVE CALCULATION
+# #     # ================================
+# #     for a in agents.values():
+# #         a["summary"]["active"] = (
+# #             a["summary"]["open"] +
+# #             a["summary"]["pending"] +
+# #             a["summary"]["answered"]
+# #         )
+
+# #     return {
+# #         "status": True,
+# #         "sla_filter": sla,
+# #         "total_agents": len(agents),
+# #         "data": list(agents.values())
+# #     }
+
+from pydantic import BaseModel
+from typing import Optional
+from collections import defaultdict
+from datetime import datetime
+
+
+class AgentSummaryRequest(BaseModel):
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    sla_filter: Optional[str] = "all"   # all | gt_48 | lt_48
+
+
+@app.post("/api/uvdesk-agent-summary")
+async def uvdesk_agent_summary(payload: AgentSummaryRequest):
 
     try:
 
-        # =====================================================
-        # GET FILTERS FROM PAYLOAD
-        # =====================================================
+        query = """
+        SELECT
+            t.agent_id,
+            CONCAT(u.first_name, ' ', u.last_name) AS agent_name,
+            t.status_id,
+            t.created_at,
 
-        from_date = payload.get("from_date")
-        to_date = payload.get("to_date")
-
-        # =====================================================
-        # DEFAULT CURRENT MONTH FILTER
-        # =====================================================
-
-        if not from_date or not to_date:
-
-            current_date = datetime.now()
-
-            from_date = current_date.strftime("%Y-%m-01")
-
-            to_date = current_date.strftime("%Y-%m-%d")
-
-        # =====================================================
-        # DATE FILTER
-        # =====================================================
-
-        date_filter = f"""
-        AND DATE(t.created_at)
-        BETWEEN '{from_date}' AND '{to_date}'
-        """
-
-        # =====================================================
-        # AGENT SUMMARY
-        # =====================================================
-
-        agent_query = f"""
-        SELECT 
-
-            CONCAT(u.first_name,' ',u.last_name) AS agent_name,
-
-            SUM(
-                CASE 
-                    WHEN t.status_id = 1 
-                    THEN 1 ELSE 0 
-                END
-            ) AS open_count,
-
-            SUM(
-                CASE 
-                    WHEN t.status_id = 2 
-                    THEN 1 ELSE 0 
-                END
-            ) AS pending_count,
-
-            SUM(
-                CASE 
-                    WHEN t.status_id = 3 
-                    THEN 1 ELSE 0 
-                END
-            ) AS answered_count,
-
-            SUM(
-                CASE 
-                    WHEN t.status_id = 4 
-                    THEN 1 ELSE 0 
-                END
-            ) AS resolved_count,
-
-            SUM(
-                CASE 
-                    WHEN t.status_id = 5 
-                    THEN 1 ELSE 0 
-                END
-            ) AS closed_count,
-
-            COUNT(t.id) AS total_tickets
+            CASE
+                WHEN t.status_id = 5
+                THEN TIMESTAMPDIFF(HOUR, t.created_at, t.updated_at)
+                ELSE TIMESTAMPDIFF(HOUR, t.created_at, NOW())
+            END AS sla_hours
 
         FROM uv_ticket t
-
-        LEFT JOIN uv_user u
-        ON t.agent_id = u.id
-
+        LEFT JOIN uv_user u ON t.agent_id = u.id
         WHERE t.is_trashed != 1
-
-        {date_filter}
-
-        GROUP BY t.agent_id
-
-        ORDER BY agent_name ASC
         """
 
-        agent_summary = await cached_query(
-            agent_query,
-            fetch="all"
-        )
+        rows = await database.fetch_all(query=query)
 
-        # =====================================================
-        # TICKET MASTER REPORT
-        # =====================================================
+        agents = defaultdict(lambda: {
+            "agent_id": None,
+            "agent_name": "",
+            "summary": {
+                "open": 0,
+                "pending": 0,
+                "answered": 0,
+                "resolved": 0,
+                "closed": 0,
+                "active": 0,
+                "total": 0
+            }
+        })
 
-        ticket_query = f"""
-        SELECT 
+        for row in rows:
 
-            CONCAT('#', t.id) AS ticket_id,
+            r = dict(row)
 
-            t.subject AS issue,
+            # ==========================
+            # DATE FILTER
+            # ==========================
+            if payload.from_date and payload.to_date:
 
-            CONCAT(c.first_name,' ',c.last_name) AS added_by,
+                created_date = r["created_at"].date()
 
-            DATE_FORMAT(
-                t.created_at,
-                '%d/%m/%Y %H:%i'
-            ) AS added_date,
+                fd = datetime.strptime(
+                    payload.from_date,
+                    "%Y-%m-%d"
+                ).date()
 
-            sg.name AS project,
+                td = datetime.strptime(
+                    payload.to_date,
+                    "%Y-%m-%d"
+                ).date()
 
-            ty.code AS type,
+                if not (fd <= created_date <= td):
+                    continue
 
-            CONCAT(a.first_name,' ',a.last_name) AS assigned_to,
+            # ==========================
+            # SLA FILTER
+            # ==========================
+            sla_hours = r["sla_hours"] or 0
 
-            CASE 
-                WHEN t.status_id = 1 THEN 'Open'
-                WHEN t.status_id = 2 THEN 'Pending'
-                WHEN t.status_id = 3 THEN 'Answered'
-                WHEN t.status_id = 4 THEN 'Resolved'
-                WHEN t.status_id = 5 THEN 'Closed'
-            END AS status,
+            if payload.sla_filter == "gt_48" and sla_hours <= 48:
+                continue
 
-            DATE_FORMAT(
-                t.updated_at,
-                '%d/%m/%Y %H:%i'
-            ) AS updated_date,
+            if payload.sla_filter == "lt_48" and sla_hours >= 48:
+                continue
 
-            CASE 
-                WHEN t.status_id = 5
-                THEN DATE_FORMAT(
-                    t.updated_at,
-                    '%d/%m/%Y %H:%i'
-                )
-                ELSE ''
-            END AS closed_date,
+            aid = r["agent_id"]
 
-            CASE 
-                WHEN t.status_id = 5
-                THEN DATEDIFF(
-                    t.updated_at,
-                    t.created_at
-                )
+            if agents[aid]["agent_id"] is None:
+                agents[aid]["agent_id"] = aid
+                agents[aid]["agent_name"] = r["agent_name"]
 
-                ELSE DATEDIFF(
-                    NOW(),
-                    t.created_at
-                )
-            END AS sla_days,
+            status = r["status_id"]
 
-            ROUND(
-                CASE 
-                    WHEN t.status_id = 5
-                    THEN TIMESTAMPDIFF(
-                        MINUTE,
-                        t.created_at,
-                        t.updated_at
-                    )
+            if status == 1:
+                agents[aid]["summary"]["open"] += 1
 
-                    ELSE TIMESTAMPDIFF(
-                        MINUTE,
-                        t.created_at,
-                        NOW()
-                    )
-                END / 60,
-                2
-            ) AS sla_hours
+            elif status == 2:
+                agents[aid]["summary"]["pending"] += 1
 
-        FROM uv_ticket t
+            elif status == 3:
+                agents[aid]["summary"]["answered"] += 1
 
-        LEFT JOIN uv_user c
-        ON t.customer_id = c.id
+            elif status == 4:
+                agents[aid]["summary"]["resolved"] += 1
 
-        LEFT JOIN uv_user a
-        ON t.agent_id = a.id
+            elif status == 5:
+                agents[aid]["summary"]["closed"] += 1
 
-        LEFT JOIN uv_ticket_type ty
-        ON t.type_id = ty.id
+            agents[aid]["summary"]["total"] += 1
 
-        LEFT JOIN uv_support_group sg
-        ON t.group_id = sg.id
+        # ==========================
+        # ACTIVE COUNT
+        # ==========================
+        for aid in agents:
+            s = agents[aid]["summary"]
 
-        WHERE t.is_trashed != 1
-
-        {date_filter}
-
-        GROUP BY t.id
-
-        ORDER BY t.id DESC
-        """
-
-        ticket_report = await cached_query(
-            ticket_query,
-            fetch="all"
-        )
-
-        # =====================================================
-        # FORMAT AGENT SUMMARY
-        # =====================================================
-
-        formatted_agents = []
-
-        for row in agent_summary or []:
-
-            formatted_agents.append({
-
-                "agent_name": str(row["agent_name"] or ""),
-
-                "open": int(row["open_count"] or 0),
-
-                "pending": int(row["pending_count"] or 0),
-
-                "answered": int(row["answered_count"] or 0),
-
-                "resolved": int(row["resolved_count"] or 0),
-
-                "closed": int(row["closed_count"] or 0),
-
-                "total": int(row["total_tickets"] or 0)
-
-            })
-
-        # =====================================================
-        # FORMAT TICKET REPORT
-        # =====================================================
-
-        formatted_tickets = []
-
-        for row in ticket_report or []:
-
-            formatted_tickets.append({
-
-                "ticket_id": str(row["ticket_id"] or ""),
-
-                "issue": str(row["issue"] or ""),
-
-                "added_by": str(row["added_by"] or ""),
-
-                "added_date": str(row["added_date"] or ""),
-
-                "project": str(row["project"] or ""),
-
-                "type": str(row["type"] or ""),
-
-                "assigned_to": str(row["assigned_to"] or ""),
-
-                "status": str(row["status"] or ""),
-
-                "updated_date": str(row["updated_date"] or ""),
-
-                "closed_date": str(row["closed_date"] or ""),
-
-                "sla_days": int(row["sla_days"] or 0),
-
-                "sla_hours": float(row["sla_hours"] or 0)
-
-            })
-
-        # =====================================================
-        # FINAL RESPONSE
-        # =====================================================
+            s["active"] = (
+                s["open"]
+                + s["pending"]
+                + s["answered"]
+            )
 
         return {
-
-            "report_name": "UVdesk Ticket Master Report",
-
-            "from_date": from_date,
-
-            "to_date": to_date,
-
-            "agent_wise_ticket_status_summary": formatted_agents,
-
-            "ticket_master_report": formatted_tickets
-
+            "status": True,
+            "filters": {
+                "from_date": payload.from_date,
+                "to_date": payload.to_date,
+                "sla_filter": payload.sla_filter
+            },
+            "total_agents": len(agents),
+            "data": list(agents.values())
         }
 
     except Exception as e:
-
         return {
             "status": False,
             "message": str(e)
         }
-####################################################################################################
+    
+#################################################################################################
+from fastapi import Body
+from datetime import datetime
+from collections import defaultdict
+from pydantic import BaseModel
 
-@app.get("/api/download/uvdesk-report")
-async def download_uvdesk_report(
-
-    from_date: str = Query(...),
-    to_date: str = Query(...)
-
-):
-
-
-    date_filter = """
-    AND DATE(t.created_at)
-    BETWEEN :from_date AND :to_date
-    """
-
-    params = {
-        "from_date": from_date,
-        "to_date": to_date
-    }
+# =========================
+# REQUEST MODEL
+# =========================
+class AgentReportRequest(BaseModel):
+    from_date: str | None = None
+    to_date: str | None = None
+    sla_type: str | None = None   # gt_48 | lt_48 | None
+    agent_name: str | None = None
 
 
-    ticket_query = f"""
+# =========================
+# API
+# =========================
+@app.post("/api/uvdesk-agent")
+async def uvdesk_agent_summary(payload: AgentReportRequest = AgentReportRequest()):
+
+    from_date = payload.from_date
+    to_date = payload.to_date
+    sla_type = payload.sla_type
+    agent_filter = payload.agent_name
+
+    # =========================
+    # SQL QUERY (FIXED - NO WRONG COLUMNS)
+    # =========================
+    query = """
     SELECT
-
-        CONCAT('#', t.id) AS ticket_id,
-
-        t.subject,
-
-        CONCAT(c.first_name,' ',c.last_name) AS added_by,
-
-        DATE_FORMAT(
-            t.created_at,
-            '%d/%m/%Y %H:%i'
-        ) AS created_at,
-
+        t.id AS ticket_id,
+        t.subject AS issue,
+        t.agent_id,
+        CONCAT(a.first_name, ' ', a.last_name) AS agent_name,
+        CONCAT(c.first_name, ' ', c.last_name) AS added_by,
+        t.created_at,
+        t.updated_at,
+        t.status_id,
         sg.name AS project_name,
-
-        ty.code AS type,
-
-        CONCAT(a.first_name,' ',a.last_name) AS assigned_to,
-
-        CASE
-            WHEN t.status_id = 1 THEN 'Open'
-            WHEN t.status_id = 2 THEN 'Pending'
-            WHEN t.status_id = 3 THEN 'Answered'
-            WHEN t.status_id = 4 THEN 'Resolved'
-            WHEN t.status_id = 5 THEN 'Closed'
-        END AS status,
-
-        DATE_FORMAT(
-            t.updated_at,
-            '%d/%m/%Y %H:%i'
-        ) AS updated_at,
+        ty.code AS ticket_type,
 
         CASE
             WHEN t.status_id = 5
-            THEN DATE_FORMAT(
-                t.updated_at,
-                '%d/%m/%Y %H:%i'
-            )
-            ELSE ''
-        END AS closed_date,
-
-        CASE
-            WHEN t.status_id = 5
-            THEN DATEDIFF(
-                t.updated_at,
-                t.created_at
-            )
-
-            ELSE DATEDIFF(
-                NOW(),
-                t.created_at
-            )
-
-        END AS sla_days,
-
-        ROUND(
-
-            CASE
-                WHEN t.status_id = 5
-                THEN TIMESTAMPDIFF(
-                    MINUTE,
-                    t.created_at,
-                    t.updated_at
-                )
-
-                ELSE TIMESTAMPDIFF(
-                    MINUTE,
-                    t.created_at,
-                    NOW()
-                )
-
-            END / 60, 2
-
-        ) AS sla_hours
+            THEN TIMESTAMPDIFF(HOUR, t.created_at, t.updated_at)
+            ELSE TIMESTAMPDIFF(HOUR, t.created_at, NOW())
+        END AS sla_hours
 
     FROM uv_ticket t
-
-    LEFT JOIN uv_user c
-    ON t.customer_id = c.id
-
-    LEFT JOIN uv_user a
-    ON t.agent_id = a.id
-
-    LEFT JOIN uv_ticket_type ty
-    ON t.type_id = ty.id
-
-    LEFT JOIN uv_support_group sg
-    ON t.group_id = sg.id
-
+    LEFT JOIN uv_user a ON t.agent_id = a.id
+    LEFT JOIN uv_user c ON t.customer_id = c.id
+    LEFT JOIN uv_ticket_type ty ON t.type_id = ty.id
+    LEFT JOIN uv_support_group sg ON t.group_id = sg.id
     WHERE t.is_trashed != 1
-
-    {date_filter}
-
-    GROUP BY t.id
-
-    ORDER BY t.id DESC
     """
 
-    agent_query = f"""
-    SELECT
+    rows = await database.fetch_all(query=query)
 
-        CONCAT(u.first_name,' ',u.last_name) AS Agent_Name,
+    agents = defaultdict(lambda: {
+        "agent_id": None,
+        "agent_name": "",
+        "summary": {
+            "open": 0,
+            "pending": 0,
+            "answered": 0,
+            "resolved": 0,
+            "closed": 0,
+            "total": 0
+        },
+        "tickets": []
+    })
 
-        SUM(
-            CASE 
-                WHEN t.status_id = 1 
-                THEN 1 ELSE 0 
-            END
-        ) AS Open_Count,
+    # =========================
+    # PROCESS DATA
+    # =========================
+    for r in rows:
+        r = dict(r)
 
-        SUM(
-            CASE 
-                WHEN t.status_id = 2 
-                THEN 1 ELSE 0 
-            END
-        ) AS Pending_Count,
+        sla_hours = float(r["sla_hours"] or 0)
 
-        SUM(
-            CASE 
-                WHEN t.status_id = 3 
-                THEN 1 ELSE 0 
-            END
-        ) AS Answered_Count,
+        # -------------------------
+        # SLA FILTER
+        # -------------------------
+        if sla_type == "gt_48" and sla_hours <= 48:
+            continue
+        if sla_type == "lt_48" and sla_hours >= 48:
+            continue
 
-        SUM(
-            CASE 
-                WHEN t.status_id = 4 
-                THEN 1 ELSE 0 
-            END
-        ) AS Resolved_Count,
+        # -------------------------
+        # DATE FILTER
+        # -------------------------
+        if from_date and to_date:
+            fd = datetime.strptime(from_date, "%Y-%m-%d").date()
+            td = datetime.strptime(to_date, "%Y-%m-%d").date()
+            created = r["created_at"].date()
 
-        SUM(
-            CASE 
-                WHEN t.status_id = 5 
-                THEN 1 ELSE 0 
-            END
-        ) AS Closed_Count,
+            if not (fd <= created <= td):
+                continue
 
-        COUNT(t.id) AS Total_Tickets
+        # -------------------------
+        # AGENT FILTER (NEW)
+        # -------------------------
+        if agent_filter:
+            if r["agent_name"] != agent_filter:
+                continue
 
-    FROM uv_ticket t
+        aid = r["agent_id"]
 
-    LEFT JOIN uv_user u
-    ON t.agent_id = u.id
+        # init agent
+        if agents[aid]["agent_id"] is None:
+            agents[aid]["agent_id"] = aid
+            agents[aid]["agent_name"] = r["agent_name"]
 
-    WHERE t.is_trashed != 1
+        # -------------------------
+        # STATUS MAP
+        # -------------------------
+        status_id = r["status_id"]
 
-    {date_filter}
+        if status_id == 1:
+            status = "Open"
+            agents[aid]["summary"]["open"] += 1
+        elif status_id == 2:
+            status = "Pending"
+            agents[aid]["summary"]["pending"] += 1
+        elif status_id == 3:
+            status = "Answered"
+            agents[aid]["summary"]["answered"] += 1
+        elif status_id == 4:
+            status = "Resolved"
+            agents[aid]["summary"]["resolved"] += 1
+        elif status_id == 5:
+            status = "Closed"
+            agents[aid]["summary"]["closed"] += 1
+        else:
+            status = "Unknown"
 
-    GROUP BY t.agent_id
+        agents[aid]["summary"]["total"] += 1
 
-    ORDER BY Agent_Name ASC
-    """
+        # -------------------------
+        # FINAL TICKET FORMAT
+        # -------------------------
+        agents[aid]["tickets"].append({
+            "ticket_id": f"#{r['ticket_id']}",
+            "issue": r["issue"],
+            "added_by": r["added_by"],
+            "added_date": r["created_at"].isoformat() if r["created_at"] else None,
+            "project": r["project_name"],
+            "type": r["ticket_type"],
+            "assigned_to": r["agent_name"],
+            "status": status,
+            "updated_date": r["updated_at"].isoformat() if r["updated_at"] else None,
+            "closed_date": r["updated_at"].isoformat() if status_id == 5 else None,
+            "sla_hours": round(sla_hours, 2),
+            "sla_days": round(sla_hours / 24, 2)
+        })
 
+    # =========================
+    # RESPONSE
+    # =========================
+    result = list(agents.values())
 
-    ticket_data = await database.fetch_all(
-        query=ticket_query,
-        values=params
-    )
-
-    agent_data = await database.fetch_all(
-        query=agent_query,
-        values=params
-    )
-
-
-    wb = Workbook()
-
-
-
-    ws1 = wb.active
-
-    ws1.title = "Agent Summary"
-
-    agent_headers = [
-        "Agent Name",
-        "Open",
-        "Pending",
-        "Answered",
-        "Resolved",
-        "Closed",
-        "Total"
-    ]
-
-    ws1.append(agent_headers)
-
-    for cell in ws1[1]:
-        cell.font = Font(bold=True)
-
-    for row in agent_data:
-
-        row = dict(row)
-
-        ws1.append([
-            row["Agent_Name"],
-            row["Open_Count"],
-            row["Pending_Count"],
-            row["Answered_Count"],
-            row["Resolved_Count"],
-            row["Closed_Count"],
-            row["Total_Tickets"]
-        ])
-
-    # =====================================================
-    # SHEET 2 → TICKET REPORT
-    # =====================================================
-
-    ws2 = wb.create_sheet(title="Ticket Report")
-
-    ticket_headers = [
-        "Ticket ID",
-        "Issue",
-        "Added By",
-        "Added Date",
-        "Project",
-        "Type",
-        "Assigned To",
-        "Status",
-        "Updated Date",
-        "Closed Date",
-        "SLA Days",
-        "SLA Hours"
-    ]
-
-    ws2.append(ticket_headers)
-
-    for cell in ws2[1]:
-        cell.font = Font(bold=True)
-
-    for row in ticket_data:
-
-        row = dict(row)
-
-        ws2.append([
-            row["ticket_id"],
-            row["subject"],
-            row["added_by"],
-            row["created_at"],
-            row["project_name"],
-            row["type"],
-            row["assigned_to"],
-            row["status"],
-            row["updated_at"],
-            row["closed_date"],
-            row["sla_days"],
-            row["sla_hours"]
-        ])
-
-    # =====================================================
-    # AUTO COLUMN WIDTH
-    # =====================================================
-
-    for sheet in wb.worksheets:
-
-        for column in sheet.columns:
-
-            max_length = 0
-
-            column_letter = column[0].column_letter
-
-            for cell in column:
-
-                try:
-
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-
-                except:
-                    pass
-
-            sheet.column_dimensions[
-                column_letter
-            ].width = max_length + 5
-
-    # =====================================================
-    # SAVE FILE IN TEMP FOLDER
-    # =====================================================
-
-    filename = (
-        f"uvdesk_report_"
-        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    )
-
-    temp_dir = tempfile.gettempdir()
-
-    file_path = os.path.join(
-        temp_dir,
-        filename
-    )
-
-    wb.save(file_path)
-
-    # =====================================================
-    # RETURN FILE
-    # =====================================================
-
-    return FileResponse(
-
-        path=file_path,
-
-        filename=filename,
-
-        media_type=(
-            "application/"
-            "vnd.openxmlformats-officedocument."
-            "spreadsheetml.sheet"
-        )
-    )
+    return {
+        "status": True,
+        "filters": {
+            "from_date": from_date,
+            "to_date": to_date,
+            "sla_type": sla_type,
+            "agent_name": agent_filter
+        },
+        "total_agents": len(result),
+        "data": result
+    }

@@ -14,6 +14,9 @@ import TicketDistribution from "./TicketDistribution";
 import AgentsWiseCards from "./Agent";
 import { AssessmentOutlined } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+
+
+
 export default function TicketDashboard() {
   const [tabValue, setTabValue] = useState(0);
 
@@ -152,34 +155,9 @@ export default function TicketDashboard() {
               minHeight: 40,
             }}
           >
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "12px",
-                background: "linear-gradient(135deg,#2962ff,#7c4dff)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                flexShrink: 0,
-                lineHeight: 0, // 🔥 removes icon baseline shift
-              }}
-            >
-              <InsertChart sx={{ fontSize: 20 }} />
-            </Box>
+           
 
-            <Typography
-              sx={{
-                fontWeight: 800,
-                fontFamily: "Poppins",
-                fontSize: { xs: 20, md: 20 },
-                color: "#000",
-                lineHeight: 1, // 🔥 important for vertical alignment
-              }}
-            >
-              Ticket Dashboard
-            </Typography>
+            
           </Stack>
         </Stack>
         {/* TABS */}

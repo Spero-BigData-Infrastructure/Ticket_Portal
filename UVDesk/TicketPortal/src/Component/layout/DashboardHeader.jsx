@@ -173,7 +173,7 @@ const DashboardHeader = () => {
       {/* RIGHT: ACTIONS */}
       <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} alignItems="center">
         {/* 🔥 1. NOTIFICATION BELL & DROPDOWN */}
-        <Tooltip title="Notifications">
+        {/* <Tooltip title="Notifications">
           <IconButton
             onClick={handleOpenNotifications}
             sx={{
@@ -217,7 +217,7 @@ const DashboardHeader = () => {
               <NotificationsNoneOutlinedIcon sx={{ fontSize: 22 }} />
             </Badge>
           </IconButton>
-        </Tooltip>
+        </Tooltip> */}
 
         {/* 🔥 NOTIFICATION POPOVER */}
         <Popover

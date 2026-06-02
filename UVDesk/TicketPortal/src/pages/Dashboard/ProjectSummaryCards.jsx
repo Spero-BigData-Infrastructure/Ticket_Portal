@@ -544,13 +544,13 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                         >
                           {[
                             {
-                              label: "Open Tickets",
+                              label: "Total Tickets",
                               icon: (
                                 <ConfirmationNumberOutlinedIcon
                                   sx={{ fontSize: "18px", mb: 0.5 }}
                                 />
                               ),
-                              value: item?.open?.[dateFilter],
+                              value: item?.total_tickets?.[dateFilter],
                               color: isDark ? "#4dabf5" : "#1976d2",
                             },
                             {

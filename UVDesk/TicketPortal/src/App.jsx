@@ -1,43 +1,59 @@
-import { Suspense, lazy, useState, useMemo } from "react";
+import { Suspense, lazy, useState, useMemo, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import GlobalStyles from "@mui/material/GlobalStyles"; // 🔥 1. GlobalStyles import kiya
+import {
+  CssBaseline,
+  GlobalStyles,
+  Box,
+  Typography,
+  Fade,
+} from "@mui/material";
+import WifiOffIcon from "@mui/icons-material/WifiOff";
 import { ColorModeContext } from "./Context/ColorModeContext";
 
-// Layout aur Loader
 import MainLayout from "./Component/layout/MainLayout";
 import Loader from "./Component/common/Loader";
-
-// Lazy loading the pages
 
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashbord"));
 const Report = lazy(() => import("./pages/ReportModule/report"));
 
 function App() {
-  // Theme state manage kar rahe hain
   const [mode, setMode] = useState("light");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+ useEffect(() => {
+   const handleOnline = () => {
+     
+     window.location.reload();
+   };
+
+   const handleOffline = () => {
+     setIsOnline(false);
+   };
+
+   window.addEventListener("online", handleOnline);
+   window.addEventListener("offline", handleOffline);
+
+   return () => {
+     window.removeEventListener("online", handleOnline);
+     window.removeEventListener("offline", handleOffline);
+   };
+ }, []);
 
   const colorMode = useMemo(
     () => ({
-      toggleColorMode: () => {
-        setMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
-      },
+      toggleColorMode: () =>
+        setMode((prev) => (prev === "light" ? "dark" : "light")),
     }),
     [],
   );
 
-  // MUI Theme create kar rahe hain based on current mode
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode: mode,
-          // Aap default background colors ko yahan customize kar sakte hain
-          background: {
-            default: mode === "light" ? "#f4f7fb" : "#121212",
-            paper: mode === "light" ? "#ffffff" : "#1e1e1e",
-          },
+          mode,
+          background: { default: mode === "light" ? "#f4f7fb" : "#121212" },
         },
       }),
     [mode],
@@ -46,19 +62,57 @@ function App() {
   return (
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
-        {/* CssBaseline MUI ke default styles aur body background ko handle karega */}
         <CssBaseline />
-
-        {/* 🔥 2. Ye GlobalStyles poore app me colors ko automatically animate karega */}
         <GlobalStyles
           styles={{
-            "body, .MuiBox-root, .MuiPaper-root, .MuiTypography-root, .MuiTableCell-root, .MuiButtonBase-root":
-              {
-                transition:
-                  "background-color 0.4s ease-in-out, color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out !important",
-              },
+            "@keyframes pulse": {
+              "0%, 100%": { opacity: 1 },
+              "50%": { opacity: 0.5 },
+            },
+            ".offline-overlay": {
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(8px)",
+            },
           }}
         />
+
+        {/* --- PREMIUM CENTERED ALERT --- */}
+        {!isOnline && (
+          <Fade in={!isOnline}>
+            <Box className="offline-overlay">
+              <Box
+                sx={{
+                  background: mode === "light" ? "#fff" : "#1e1e1e",
+                  p: 5,
+                  borderRadius: "24px",
+                  textAlign: "center",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+                  maxWidth: "400px",
+                  mx: 2,
+                  animation: "pulse 2s infinite",
+                }}
+              >
+                <WifiOffIcon sx={{ fontSize: 60, color: "#ff4d4d", mb: 2 }} />
+                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+                  Connection Lost
+                </Typography>
+                <Typography variant="body1" sx={{ color: "text.secondary" }}>
+                  Please check your internet connection. We will automatically
+                  restore access once you are back online.
+                </Typography>
+              </Box>
+            </Box>
+          </Fade>
+        )}
 
         <BrowserRouter>
           <Suspense fallback={<Loader />}>

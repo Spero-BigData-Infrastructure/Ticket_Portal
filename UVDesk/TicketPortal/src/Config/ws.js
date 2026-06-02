@@ -16,8 +16,8 @@ const getWsBaseUrl = () => {
   }
 
   // 🔹 Staging / public IP
-  if (hostname === "122.176.232.35" && port === "8080") {
-    return "ws://122.176.232.35:8080/ws";
+  if (hostname === "122.176.232.35" && port === "8558") {
+    return "ws://122.176.232.35:8558/ws";
   }
 
   // 🔹 Production domain

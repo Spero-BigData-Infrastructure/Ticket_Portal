@@ -1,22 +1,19 @@
 import axios from "axios";
+import { toast } from "react-toastify"; // 🔥 Import Toast
+import { API_URL } from "../config/api";
 
-// 1. Axios ka instance create karo Base URL ke sath
+// 1. Create an Axios instance with the Base URL
 const axiosInstance = axios.create({
-  baseURL: "http://192.168.1.204:8558/api", // Baar-baar pura URL nahi likhna padega
-  timeout: 10000, // Agar API 10 second mein response na de toh error de dega
+  baseURL: API_URL,
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// 2. REQUEST INTERCEPTOR (API call hone se theek pehle kya karna hai)
+// 2. REQUEST INTERCEPTOR
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Agar aapke paas login token hai (localStorage/Cookies me), toh yahan se bhej sakte ho:
-    // const token = localStorage.getItem("token");
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
     return config;
   },
   (error) => {
@@ -24,18 +21,37 @@ axiosInstance.interceptors.request.use(
   },
 );
 
-// 3. RESPONSE INTERCEPTOR (API ka response aane ke theek baad kya karna hai)
+// 3. RESPONSE INTERCEPTOR (Handle Errors Here)
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Response successful hai toh seedha data return kardo
+    // If the response is successful, just return it
     return response;
   },
   (error) => {
-    // Agar error aaye (e.g., 401 Unauthorized, 500 Server Error) toh global alert dikha sakte ho
-    console.error("API Error Response:", error.response?.data || error.message);
+    // Extract the error message from the backend response or use a default message
+    const errorMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      "Something went wrong while fetching data!";
 
+    // 🔥 1. Log the error to the console for developers
+    console.error("🚨 API Error Response:", errorMessage);
+
+    // 🔥 2. Show a Toast Notification for the user
+    toast.error(errorMessage, {
+      position: "top-right",
+      autoClose: 4000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      theme: "colored",
+    });
+
+    // Handle unauthorized access (e.g., Token expired)
     if (error.response && error.response.status === 401) {
-      // User ka token expire ho gaya hai, usko login page pe bhej do
+      toast.info("Session expired. Please login again.");
       // window.location.href = '/login';
     }
 

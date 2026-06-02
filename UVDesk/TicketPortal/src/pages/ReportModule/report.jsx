@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -20,9 +20,9 @@ import {
   useTransform,
 } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 
-// Icons
+import reportService from "../../api/reportService";
+
 import {
   Dashboard as DashboardIcon,
   Assessment as AssessmentIcon,
@@ -34,15 +34,12 @@ import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import InventoryIcon from "@mui/icons-material/Inventory2Outlined";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import ArrowRightAltIcon from "@mui/icons-material/ArrowRightAlt";
 
-// Child Components
 import AgentSummaryTable from "./AgentSummaryTable";
 import TicketDetailsTable from "./TicketDetailsTable";
 
 const MotionPaper = motion(Paper);
 const MotionBox = motion(Box);
-const BASE_URL = "http://192.168.1.204:8558/api";
 
 const Counter = ({ value }) => {
   const count = useSpring(0, { stiffness: 100, damping: 20 });
@@ -67,7 +64,8 @@ const StatCard = ({ title, value, color, icon, delay = 0 }) => {
       sx={{
         position: "relative",
         overflow: "hidden",
-        height: "auto",
+        height: "100%", // 🔥 Ensures full height
+        width: "100%", // 🔥 Ensures it takes full column width
         minHeight: { xs: 90, sm: 100 },
         px: { xs: 1.5, sm: 2 },
         py: { xs: 1.5, sm: 2 },
@@ -279,51 +277,22 @@ function Report() {
     setSelectedAgentName("");
     setPage(0);
     try {
-      const response = await axios.post(`${BASE_URL}/uvdesk-agent-summary`, {
+      const data = await reportService.getAgentSummary({
         from_date: start,
         to_date: end,
         sla_filter: filter,
       });
-      if (response.data && response.data.status) {
-        setSummaryData(response.data.data || []);
-        setOverallKpi(response.data.overall || {});
+      if (data && data.status) {
+        setSummaryData(data.data || []);
+        setOverallKpi(data.overall || {});
       }
     } catch (error) {
       console.error("Error fetching summary:", error);
-      const fallbackData = {
-        overall: {
-          open: 2,
-          pending: 1,
-          answered: 0,
-          resolved: 1,
-          closed: 0,
-          active: 3,
-          total: 4,
-        },
-        data: [
-          {
-            agent_id: 75,
-            agent_name: "Prajakta Mitake",
-            summary: {
-              open: 0,
-              pending: 1,
-              answered: 0,
-              resolved: 0,
-              closed: 0,
-              active: 1,
-              total: 1,
-            },
-          },
-        ],
-      };
-      setSummaryData(fallbackData.data);
-      setOverallKpi(fallbackData.overall);
     } finally {
       setLoadingSummary(false);
     }
   };
 
-  // 🔥 Handler when SLA Dropdown changes from AgentSummaryTable
   const handleSlaFilterChange = (newSla) => {
     setSlaFilter(newSla);
     fetchSummaryData(fromDate, toDate, newSla);
@@ -346,35 +315,19 @@ function Report() {
     setLoadingDetails(true);
 
     try {
-      const response = await axios.post(`${BASE_URL}/uvdesk-agent`, {
+      const data = await reportService.getAgentDetails({
         from_date: fromDate,
         to_date: toDate,
         sla_type: slaFilter,
         agent_id: agentId,
       });
-      if (
-        response.data &&
-        response.data.data &&
-        response.data.data.length > 0
-      ) {
-        setAgentTickets(response.data.data[0].tickets || []);
+      if (data && data.data && data.data.length > 0) {
+        setAgentTickets(data.data[0].tickets || []);
       } else {
         setAgentTickets([]);
       }
     } catch (error) {
       console.error("Error fetching details:", error);
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setAgentTickets([
-        {
-          ticket_id: "#2491",
-          issue: "MHEMS- ERO Application",
-          project: "Spero IT MH",
-          type: "Development Task",
-          status: "Open",
-          updated_date: "2026-05-04T04:28:25",
-          sla_hours: 678.0,
-        },
-      ]);
     } finally {
       setLoadingDetails(false);
     }
@@ -389,12 +342,10 @@ function Report() {
         sla_type: slaFilter,
       };
       if (selectedAgentName) payload.agent_name = selectedAgentName;
-      const response = await axios.post(
-        `${BASE_URL}/download/uvdesk-report`,
-        payload,
-        { responseType: "blob" },
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      const blobData = await reportService.downloadReport(payload);
+
+      const url = window.URL.createObjectURL(new Blob([blobData]));
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
@@ -462,7 +413,12 @@ function Report() {
   ];
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box
+      sx={{
+        width: "100%",
+      
+      }}
+    >
       <MotionBox
         key="report-page"
         variants={pageContainerVariants}
@@ -490,9 +446,9 @@ function Report() {
                 color: isDark ? "#f8fafc" : "#0f172a",
               }}
             >
-              UV Desk Master Report
+              UV Desk Master Reports
             </Typography>
-            {/* <Typography
+            <Typography
               variant="body2"
               sx={{
                 color: isDark ? "#94a3b8" : "#64748b",
@@ -501,7 +457,7 @@ function Report() {
               }}
             >
               Analyze your ticketing data in detail
-            </Typography> */}
+            </Typography>
           </MotionBox>
           <MotionBox variants={slideFromRightVariants}>
             <Box
@@ -583,13 +539,14 @@ function Report() {
           </MotionBox>
         </Box>
 
-        {/* 🔥 FILTERS & KPI SECTION (SLA Dropdown removed from here) */}
+        {/* FILTERS & KPI SECTION */}
         <MotionBox variants={contentVariants}>
           <Paper
             elevation={0}
             sx={{
               p: { xs: 2.5, md: 3 },
               mb: 2.5,
+              width: "100%", // 🔥 Ensures Paper takes full width
               borderRadius: "20px",
               background: isDark
                 ? "linear-gradient(145deg, rgba(22,28,45,0.9) 0%, rgba(15,23,42,0.98) 100%)"
@@ -796,16 +753,32 @@ function Report() {
                 mb: 3,
               }}
             />
-            <Grid container spacing={2}>
+
+            {/* 🔥 GRID STRETCH FIX */}
+            <Grid
+              container
+              spacing={2}
+              alignItems="stretch"
+              sx={{ width: "100%", m: 0 }}
+            >
               {kpiData.map((kpi, idx) => (
-                <Grid item xs={12} sm={6} md={3} key={idx}>
-                  <StatCard
-                    title={kpi.title}
-                    value={kpi.count}
-                    color={kpi.color}
-                    icon={kpi.icon}
-                    delay={idx * 0.05}
-                  />
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={3}
+                  key={idx}
+                  sx={{ display: "flex", p: { xs: 1, sm: 2 } }}
+                >
+                  <Box sx={{ width: "100%", height: "100%" }}>
+                    <StatCard
+                      title={kpi.title}
+                      value={kpi.count}
+                      color={kpi.color}
+                      icon={kpi.icon}
+                      delay={idx * 0.05}
+                    />
+                  </Box>
                 </Grid>
               ))}
             </Grid>
@@ -825,8 +798,8 @@ function Report() {
             selectedAgentId={selectedAgentId}
             fetchAgentDetails={fetchAgentDetails}
             getStatusColor={getStatusColor}
-            slaFilter={slaFilter} // 🔥 PASSED SLA FILTER DOWN
-            onSlaFilterChange={handleSlaFilterChange} // 🔥 PASSED SLA HANDLER DOWN
+            slaFilter={slaFilter}
+            onSlaFilterChange={handleSlaFilterChange}
           />
         </MotionBox>
 

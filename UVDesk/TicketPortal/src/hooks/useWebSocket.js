@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+// 🔥 Import dynamic WS_URL from your config
+import { WS_URL } from "../Config/ws";
 
 export const useWebSocket = (endpoint) => {
   const [data, setData] = useState(null);
@@ -11,13 +13,14 @@ export const useWebSocket = (endpoint) => {
     let isMounted = true;
 
     const connect = () => {
-      // 🔥 Hardcoded fallback added for safety
-      const baseUrl =
-        import.meta.env.VITE_WS_BASE_URL || "ws://192.168.1.204:8558/ws";
+     
+      const formattedBaseUrl = WS_URL.endsWith("/")
+        ? WS_URL.slice(0, -1)
+        : WS_URL;
       const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
 
-      console.log("Connecting to:", `${baseUrl}${path}`);
-      ws.current = new WebSocket(`${baseUrl}${path}`);
+      console.log("Connecting to:", `${formattedBaseUrl}${path}`);
+      ws.current = new WebSocket(`${formattedBaseUrl}${path}`);
 
       ws.current.onopen = () => {
         if (isMounted) setIsConnected(true);
@@ -32,15 +35,23 @@ export const useWebSocket = (endpoint) => {
         }
       };
 
+      // Best practice: Add error catching so it reconnects properly on failure
+      ws.current.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+      };
+
       ws.current.onclose = () => {
         if (isMounted) {
           setIsConnected(false);
+          // Auto-reconnect after 3 seconds
+          if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
           reconnectTimeout.current = setTimeout(connect, 3000);
         }
       };
     };
 
     connect();
+
     return () => {
       isMounted = false;
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);

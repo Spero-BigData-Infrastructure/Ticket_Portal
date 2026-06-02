@@ -10,7 +10,7 @@ import MainLayout from "./Component/layout/MainLayout";
 import Loader from "./Component/common/Loader";
 
 // Lazy loading the pages
-const MainRoute = lazy(() => import("./Component/ReportModule/MainRoute"));
+
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashbord"));
 const Report = lazy(() => import("./pages/ReportModule/report"));
 

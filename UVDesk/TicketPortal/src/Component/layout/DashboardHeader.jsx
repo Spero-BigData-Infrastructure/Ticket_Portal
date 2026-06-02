@@ -28,7 +28,7 @@ import ChatBubbleOutlineOutlinedIcon from "@mui/icons-material/ChatBubbleOutline
 
 // 🔥 Context & Animation
 import { ColorModeContext } from "../../Context/ColorModeContext";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion,  } from "framer-motion";
 
 const MotionBox = motion(Box);
 

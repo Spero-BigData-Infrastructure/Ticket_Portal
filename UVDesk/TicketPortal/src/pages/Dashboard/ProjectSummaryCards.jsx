@@ -16,7 +16,9 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { motion, AnimatePresence, animate } from "framer-motion";
-import axios from "axios";
+
+// 🔥 1. Axios hata kar Service import kar li hai
+import dashboardService from "../../api/dashboardService";
 
 // Icons
 import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
@@ -86,11 +88,9 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
   const fetchProjectSummary = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        "http://192.168.1.204:8558/api/project-summary",
-      );
-      if (response?.data?.status) {
-        setProjectData(response?.data?.project_wise_ticket_summary || []);
+      const data = await dashboardService.getProjectSummary();
+      if (data?.status) {
+        setProjectData(data?.project_wise_ticket_summary || []);
       }
     } catch (error) {
       console.log("Project Summary API Error", error);
@@ -99,14 +99,13 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
     }
   };
 
+  // 🔥 3. Service Use Karke API Fetch Logic Clean Kiya
   const fetchAgentSummary = async (projectId) => {
     try {
       setAgentLoading(true);
-      const response = await axios.get(
-        `http://192.168.1.204:8558/api/project-agent-summary?project_id=${projectId}`,
-      );
-      if (response?.data?.status) {
-        setAgentData(response?.data?.agents || []);
+      const data = await dashboardService.getProjectAgentSummary(projectId);
+      if (data?.status) {
+        setAgentData(data?.agents || []);
       }
     } catch (error) {
       console.log("Agent Summary API Error", error);
@@ -196,7 +195,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* 🔥 BULLETPROOF HEADER FOR EXTREME RIGHT ALIGNMENT */}
             <Box
               sx={{
                 display: "flex",
@@ -208,7 +206,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                 gap: 2,
               }}
             >
-              {/* LEFT SIDE: Title */}
               <Box>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Box
@@ -229,7 +226,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                     Project Overview
                   </Typography>
                   <Chip
-                    label={`${filteredProjects.length} Active`}
+                    label={`${filteredProjects.length} Active Projects`}
                     color="primary"
                     variant={isDark ? "outlined" : "filled"}
                     sx={{
@@ -242,7 +239,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                 </Stack>
               </Box>
 
-              {/* RIGHT SIDE: Chip & Search Bar (Extreme Right Aligned) */}
               <Box
                 sx={{
                   display: "flex",
@@ -422,7 +418,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                           }}
                         />
 
-                        {/* 🔥 TOP SECTION: Increased mb from 2.5 to 4 for perfect vertical gap */}
                         <Stack
                           direction="row"
                           spacing={2}
@@ -479,10 +474,10 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                           </Box>
                         </Stack>
 
-                        {/* PROGRESS BAR SECTION */}
                         <Box
                           sx={{
-                            mb: 3,
+                            mb: 3.5,
+                            mt: 0.5,
                             flexGrow: 1,
                             display: "flex",
                             flexDirection: "column",
@@ -494,7 +489,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                             direction="row"
                             justifyContent="space-between"
                             alignItems="center"
-                            mb={1}
+                            mb={1.2}
                           >
                             <Typography
                               sx={{
@@ -530,7 +525,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                           />
                         </Box>
 
-                        {/* BOTTOM COUNTERS ROW */}
                         <Box
                           sx={{
                             display: "flex",

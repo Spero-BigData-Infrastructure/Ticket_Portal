@@ -1,20 +1,38 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance"; 
+const reportService = {
+  /**
+   * Fetch the summary of all agents
+   * @param {Object} payload - { from_date, to_date, sla_filter }
+   */
+  getAgentSummary: async (payload) => {
+    // Bina try/catch ke seedha call aur return
+    const response = await axiosInstance.post("/api/uvdesk-agent-summary", payload);
+    return response.data;
+  },
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-});
+  /**
+   * Fetch ticket details for a specific agent
+   * @param {Object} payload - { from_date, to_date, sla_type, agent_id }
+   */
+  getAgentDetails: async (payload) => {
+    const response = await axiosInstance.post("/api/uvdesk-agent", payload);
+    return response.data;
+  },
 
-export const fetchMasterReport = async (fromDate, toDate) => {
-  const response = await api.post("/uvdesk-master-report", {
-    from_date: fromDate,
-    to_date: toDate,
-  });
-  return response.data;
+  /**
+   * Download the Excel/CSV report
+   * @param {Object} payload - { from_date, to_date, sla_type, agent_name (optional) }
+   */
+  downloadReport: async (payload) => {
+    const response = await axiosInstance.post(
+      "/api/download/uvdesk-report",
+      payload,
+      {
+        responseType: "blob",
+      },
+    );
+    return response.data;
+  },
 };
 
-// GET API se file download handle karne ka tarika
-export const downloadExcelReport = (fromDate, toDate) => {
-  const url = `${import.meta.env.VITE_API_BASE_URL}/download/uvdesk-report?from_date=${fromDate}&to_date=${toDate}`;
-  // Yeh browser me naya tab khol kar file download start kar dega
-  window.open(url, "_blank");
-};
+export default reportService;

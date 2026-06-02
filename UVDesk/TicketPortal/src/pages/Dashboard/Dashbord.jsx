@@ -365,7 +365,7 @@ function Dashboard() {
           </MotionBox>
           <MotionBox variants={dashboardItemVariants}>
             <StatCard
-              title="Resolved Phase"
+              title="Resolved/Testing Phase"
               value={resolvedTickets}
               color="#2EA44F"
               icon={<TaskAlt />}

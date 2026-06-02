@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Typography,
   Paper,
@@ -14,7 +14,7 @@ import {
   Chip,
   Stack,
   alpha,
-  TablePagination, // Pagination component import kiya gaya hai
+  TablePagination,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
@@ -168,8 +168,9 @@ export default function TicketDetailsTable({
                 </TableCell>
               </TableRow>
             ) : (
-              // Array slicing handle kar rha hai current page ka data
-              agentTickets
+              // 🔥 YAHAN FIX KIYA HAI: [...agentTickets].reverse() laga diya
+              [...agentTickets]
+                .reverse()
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((ticket, idx) => (
                   <TableRow

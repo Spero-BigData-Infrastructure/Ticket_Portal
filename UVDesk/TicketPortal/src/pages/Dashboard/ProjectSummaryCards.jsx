@@ -11,7 +11,6 @@ import {
   TextField,
   InputAdornment,
   IconButton,
-  Pagination,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { motion, AnimatePresence, animate } from "framer-motion";
@@ -84,10 +83,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
   const [agentData, setAgentData] = useState([]);
   const [projectSearch, setProjectSearch] = useState("");
 
-  // 🔥 PAGINATION STATE (6 Cards Per Page)
-  const [page, setPage] = useState(1);
-  const ITEMS_PER_PAGE = 6;
-
   const fetchProjectSummary = async () => {
     try {
       setLoading(true);
@@ -120,11 +115,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
     fetchProjectSummary();
   }, []);
 
-  // Reset to page 1 on search
-  useEffect(() => {
-    setPage(1);
-  }, [projectSearch]);
-
   const handleProjectClick = (project) => {
     const projectId = project.project_id || project.id;
     setSelectedProject(project);
@@ -136,15 +126,9 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
     setAgentData([]);
   };
 
+  // 🔥 FILTERED PROJECTS
   const filteredProjects = projectData.filter((p) =>
     (p?.project_name || "").toLowerCase().includes(projectSearch.toLowerCase()),
-  );
-
-  // 🔥 PAGINATION LOGIC
-  const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
-  const paginatedProjects = filteredProjects.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE,
   );
 
   if (loading) {
@@ -166,7 +150,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
               xs: "minmax(0, 1fr)",
               sm: "repeat(2, minmax(0, 1fr))",
               md: "repeat(3, minmax(0, 1fr))",
-              xl: "repeat(3, minmax(0, 1fr))", // Matched xl to md for better 6-card symmetry
+              xl: "repeat(3, minmax(0, 1fr))",
             },
             gap: 3,
             mt: 3,
@@ -283,6 +267,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                       <InputAdornment position="end">
                         <IconButton
                           size="small"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => setProjectSearch("")}
                           edge="end"
                           sx={{ color: "text.secondary" }}
@@ -311,7 +296,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
               </Box>
             </Box>
 
-            {/* Grid Container */}
+            {/* 🔥 FIXED HEIGHT GRID WITH CUSTOM SCROLLBAR */}
             <MotionBox
               variants={gridContainerVariants}
               initial="hidden"
@@ -322,9 +307,30 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   xs: "minmax(0, 1fr)",
                   sm: "repeat(2, minmax(0, 1fr))",
                   md: "repeat(3, minmax(0, 1fr))",
-                  xl: "repeat(3, minmax(0, 1fr))", // 3 Columns look perfect for 6 items
+                  xl: "repeat(3, minmax(0, 1fr))",
                 },
                 gap: 2.5,
+                maxHeight: "65vh", // Yahan aap height adjust kar sakte hain (e.g. 600px)
+                overflowY: "auto",
+                pr: 1, // Scrollbar ke liye padding right
+                pb: 2, // Thodi bottom padding
+                pt: 1,
+                pl: 1, // Shadow cut na ho uske liye left padding
+                ml: -1,
+                // Custom Premium Scrollbar Design
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "transparent",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: isDark ? "#475569" : "#cbd5e1",
+                  borderRadius: "10px",
+                  "&:hover": {
+                    background: isDark ? "#64748b" : "#94a3b8",
+                  },
+                },
               }}
             >
               {filteredProjects.length === 0 ? (
@@ -339,7 +345,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   No projects found.
                 </Typography>
               ) : (
-                paginatedProjects.map((item, index) => {
+                filteredProjects.map((item, index) => {
                   const baseColors = [
                     "#2962ff",
                     "#7c4dff",
@@ -612,52 +618,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                 })
               )}
             </MotionBox>
-
-            {/* 🔥 PREMIUM PAGINATION COMPONENT */}
-            {totalPages > 1 && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  mt: 4,
-                  pt: 2.5,
-                  borderTop: `1px dashed ${isDark ? alpha("#fff", 0.1) : alpha("#000", 0.1)}`,
-                }}
-              >
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(event, value) => setPage(value)}
-                  shape="rounded"
-                  variant="outlined"
-                  size="large"
-                  sx={{
-                    "& .MuiPaginationItem-root": {
-                      fontWeight: 700,
-                      fontSize: "14px",
-                      borderColor: isDark
-                        ? alpha("#fff", 0.1)
-                        : alpha("#000", 0.15),
-                      color: "text.primary",
-                      transition: "all 0.3s ease",
-                      "&:hover": {
-                        bgcolor: isDark
-                          ? alpha("#2962ff", 0.2)
-                          : alpha("#2962ff", 0.1),
-                        borderColor: "#2962ff",
-                        color: isDark ? "#82b1ff" : "#2962ff",
-                      },
-                    },
-                    "& .Mui-selected": {
-                      bgcolor: "#2962ff !important",
-                      color: "#fff !important",
-                      borderColor: "#2962ff !important",
-                      boxShadow: "0 4px 12px rgba(41, 98, 255, 0.4)",
-                    },
-                  }}
-                />
-              </Box>
-            )}
           </motion.div>
         ) : (
           <AgentSummaryView

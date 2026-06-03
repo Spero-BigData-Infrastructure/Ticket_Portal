@@ -481,7 +481,7 @@ const TicketDistribution = ({ pieData = [], isLoading = false }) => {
                       fontSize: "13px",
                       fontWeight: isActive ? 700 : 600,
                       color: isActive ? "text.primary" : "text.secondary",
-                      fontFamily: "'Poppins'",
+                      // 🔥 Yahan se fontFamily: "'Poppins'" hata diya hai
                       transition: "color 0.2s ease",
                     }}
                   >
@@ -495,7 +495,7 @@ const TicketDistribution = ({ pieData = [], isLoading = false }) => {
                       fontSize: "14px",
                       fontWeight: 800,
                       color: "text.primary",
-                      fontFamily: "'Poppins'",
+                      // 🔥 Yahan se bhi fontFamily hata diya hai
                     }}
                   >
                     {item.value.toLocaleString()}

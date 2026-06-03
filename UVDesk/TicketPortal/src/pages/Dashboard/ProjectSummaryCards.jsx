@@ -3,21 +3,20 @@ import {
   Box,
   Typography,
   Stack,
-  Avatar,
   Skeleton,
   useTheme,
   LinearProgress,
   Tooltip,
   Chip,
-  Divider,
   TextField,
   InputAdornment,
   IconButton,
+  Pagination,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { motion, AnimatePresence, animate } from "framer-motion";
 
-// 🔥 1. Axios hata kar Service import kar li hai
+// API Service
 import dashboardService from "../../api/dashboardService";
 
 // Icons
@@ -85,6 +84,10 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
   const [agentData, setAgentData] = useState([]);
   const [projectSearch, setProjectSearch] = useState("");
 
+  // 🔥 PAGINATION STATE (6 Cards Per Page)
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+
   const fetchProjectSummary = async () => {
     try {
       setLoading(true);
@@ -99,7 +102,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
     }
   };
 
-  // 🔥 3. Service Use Karke API Fetch Logic Clean Kiya
   const fetchAgentSummary = async (projectId) => {
     try {
       setAgentLoading(true);
@@ -118,6 +120,11 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
     fetchProjectSummary();
   }, []);
 
+  // Reset to page 1 on search
+  useEffect(() => {
+    setPage(1);
+  }, [projectSearch]);
+
   const handleProjectClick = (project) => {
     const projectId = project.project_id || project.id;
     setSelectedProject(project);
@@ -131,6 +138,13 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
 
   const filteredProjects = projectData.filter((p) =>
     (p?.project_name || "").toLowerCase().includes(projectSearch.toLowerCase()),
+  );
+
+  // 🔥 PAGINATION LOGIC
+  const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
+  const paginatedProjects = filteredProjects.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
   );
 
   if (loading) {
@@ -149,20 +163,20 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
           sx={{
             display: "grid",
             gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2,1fr)",
-              md: "repeat(3,1fr)",
-              xl: "repeat(4,1fr)",
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(3, minmax(0, 1fr))",
+              xl: "repeat(3, minmax(0, 1fr))", // Matched xl to md for better 6-card symmetry
             },
             gap: 3,
             mt: 3,
           }}
         >
-          {[...Array(8)].map((_, index) => (
+          {[...Array(6)].map((_, index) => (
             <Skeleton
               key={index}
               variant="rounded"
-              height={190}
+              height={220}
               sx={{ borderRadius: "16px" }}
               animation="wave"
             />
@@ -183,7 +197,6 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
         boxShadow: isDark
           ? "0 4px 24px rgba(0,0,0,0.4)"
           : "0 4px 24px rgba(15,23,42,0.04)",
-        minHeight: "500px",
       }}
     >
       <AnimatePresence mode="wait">
@@ -195,6 +208,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
+            {/* Header Section */}
             <Box
               sx={{
                 display: "flex",
@@ -228,12 +242,14 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   <Chip
                     label={`${filteredProjects.length} Active Projects`}
                     color="primary"
-                    variant={isDark ? "outlined" : "filled"}
+                    variant="filled"
                     sx={{
                       fontWeight: 700,
                       borderRadius: "8px",
-                      height: "36px",
+                      height: "32px",
                       display: { xs: "none", sm: "flex" },
+                      bgcolor: "#1976d2",
+                      color: "#fff",
                     }}
                   />
                 </Stack>
@@ -269,10 +285,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                           size="small"
                           onClick={() => setProjectSearch("")}
                           edge="end"
-                          sx={{
-                            color: "text.secondary",
-                            "&:hover": { color: "text.primary" },
-                          }}
+                          sx={{ color: "text.secondary" }}
                         >
                           <ClearIcon fontSize="small" />
                         </IconButton>
@@ -281,32 +294,16 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   }}
                   sx={{
                     minWidth: { xs: "100%", sm: "260px" },
-                    transition: "all 0.3s ease",
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "10px",
                       bgcolor: isDark
                         ? alpha("#fff", 0.03)
                         : alpha("#000", 0.02),
-                      transition: "all 0.3s ease",
-                      paddingRight: projectSearch ? "8px" : "14px",
                       "& fieldset": {
                         borderColor: isDark ? alpha("#fff", 0.1) : "divider",
                       },
-                      "&:hover": {
-                        bgcolor: isDark
-                          ? alpha("#fff", 0.05)
-                          : alpha("#000", 0.04),
-                      },
                       "&:hover fieldset": {
                         borderColor: theme.palette.primary.main,
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: theme.palette.primary.main,
-                        borderWidth: "1px",
-                      },
-                      "&.Mui-focused": {
-                        bgcolor: isDark ? alpha("#fff", 0.02) : "#fff",
-                        boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
                       },
                     },
                   }}
@@ -314,6 +311,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
               </Box>
             </Box>
 
+            {/* Grid Container */}
             <MotionBox
               variants={gridContainerVariants}
               initial="hidden"
@@ -321,22 +319,12 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
               sx={{
                 display: "grid",
                 gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2,1fr)",
-                  md: "repeat(3,1fr)",
-                  xl: "repeat(4,1fr)",
+                  xs: "minmax(0, 1fr)",
+                  sm: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(3, minmax(0, 1fr))",
+                  xl: "repeat(3, minmax(0, 1fr))", // 3 Columns look perfect for 6 items
                 },
-                gap: 3,
-                maxHeight: "75vh",
-                overflowY: "auto",
-                pr: 1,
-                pb: 1,
-                pt: 1,
-                "&::-webkit-scrollbar": { width: "6px" },
-                "&::-webkit-scrollbar-thumb": {
-                  background: isDark ? "#475569" : "#cbd5e1",
-                  borderRadius: "10px",
-                },
+                gap: 2.5,
               }}
             >
               {filteredProjects.length === 0 ? (
@@ -351,7 +339,7 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   No projects found.
                 </Typography>
               ) : (
-                filteredProjects.map((item, index) => {
+                paginatedProjects.map((item, index) => {
                   const baseColors = [
                     "#2962ff",
                     "#7c4dff",
@@ -364,6 +352,10 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                   const total = Number(item?.total_tickets?.[dateFilter] || 0);
                   const resolved = Number(item?.resolved?.[dateFilter] || 0);
                   const closed = Number(item?.closed?.[dateFilter] || 0);
+                  const active = Number(
+                    item?.active_tickets?.[dateFilter] || 0,
+                  );
+
                   const completedTickets = resolved + closed;
                   const progressPercent =
                     total > 0
@@ -371,24 +363,21 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                       : 0;
 
                   return (
-                    <motion.div
-                      key={index}
-                      variants={cardVariants}
-                      style={{ height: "100%" }}
-                    >
+                    <motion.div key={index} variants={cardVariants}>
                       <Box
                         onClick={() => handleProjectClick(item)}
                         sx={{
                           display: "flex",
                           flexDirection: "column",
                           height: "100%",
+                          minHeight: "220px",
                           bgcolor: "background.paper",
                           borderRadius: "16px",
                           border: "1px solid",
                           borderColor: isDark
                             ? alpha(mainColor, 0.2)
                             : alpha(mainColor, 0.15),
-                          p: 2.5,
+                          p: 2,
                           position: "relative",
                           overflow: "hidden",
                           cursor: "pointer",
@@ -405,51 +394,67 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                           },
                         }}
                       >
+                        {/* Background Glow Effect */}
                         <Box
                           sx={{
                             position: "absolute",
-                            top: -25,
-                            right: -25,
-                            width: 100,
-                            height: 100,
+                            top: -30,
+                            right: -30,
+                            width: 140,
+                            height: 140,
                             borderRadius: "50%",
-                            background: `radial-gradient(circle, ${alpha(mainColor, 0.15)} 0%, transparent 70%)`,
+                            background: `radial-gradient(circle, ${alpha(mainColor, 0.12)} 0%, transparent 70%)`,
                             zIndex: 0,
                           }}
                         />
 
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          alignItems="flex-start"
-                          mb={4}
-                          sx={{ position: "relative", zIndex: 1 }}
+                        {/* Top-Left Icon */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 16,
+                            left: 16,
+                            width: 34,
+                            height: 34,
+                            bgcolor: alpha(mainColor, isDark ? 0.2 : 0.1),
+                            borderRadius: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 1,
+                          }}
                         >
-                          <Avatar
-                            sx={{
-                              width: 42,
-                              height: 42,
-                              bgcolor: alpha(mainColor, isDark ? 0.2 : 0.1),
-                              color: mainColor,
-                              borderRadius: "12px",
-                            }}
-                          >
-                            <AssessmentOutlinedIcon sx={{ fontSize: "22px" }} />
-                          </Avatar>
-                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <AssessmentOutlinedIcon
+                            sx={{ color: mainColor, fontSize: "18px" }}
+                          />
+                        </Box>
+
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            zIndex: 1,
+                            mt: 1,
+                            mb: "auto",
+                          }}
+                        >
+                          {/* Title & Tickets */}
+                          <Box sx={{ textAlign: "center", mb: 2.5 }}>
                             <Tooltip
                               title={item?.project_name || "Default Project"}
                               placement="top"
-                              arrow
                             >
                               <Typography
                                 sx={{
                                   fontSize: "16px",
-                                  fontWeight: 700,
+                                  fontWeight: 800,
                                   color: "text.primary",
                                   whiteSpace: "nowrap",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
+                                  maxWidth: "75%",
+                                  px: 1,
+                                  mx: "auto",
                                 }}
                               >
                                 {item?.project_name || "Default Project"}
@@ -468,176 +473,138 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                                 component="span"
                                 sx={{ color: "text.primary", fontWeight: 700 }}
                               >
-                                <AnimatedCounter to={total} />
+                                {total}
                               </Box>
                             </Typography>
                           </Box>
-                        </Stack>
 
-                        <Box
-                          sx={{
-                            mb: 3.5,
-                            mt: 0.5,
-                            flexGrow: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "center",
-                            zIndex: 1,
-                          }}
-                        >
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={1.2}
-                          >
-                            <Typography
-                              sx={{
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                color: "text.secondary",
-                              }}
+                          {/* Progress Bar Group */}
+                          <Box sx={{ width: "100%", px: 0.5 }}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              justifyContent="space-between"
+                              mb={0.8}
                             >
-                              Completion Rate
-                            </Typography>
-                            <Typography
+                              <Typography
+                                sx={{
+                                  fontSize: "12px",
+                                  fontWeight: 700,
+                                  color: "text.secondary",
+                                }}
+                              >
+                                Completion Rate
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  fontSize: "13px",
+                                  fontWeight: 900,
+                                  color: mainColor,
+                                }}
+                              >
+                                <AnimatedCounter to={progressPercent} />%
+                              </Typography>
+                            </Stack>
+                            <LinearProgress
+                              variant="determinate"
+                              value={progressPercent}
                               sx={{
-                                fontSize: "14px",
-                                fontWeight: 800,
-                                color: mainColor,
-                              }}
-                            >
-                              <AnimatedCounter to={progressPercent} />%
-                            </Typography>
-                          </Stack>
-                          <LinearProgress
-                            variant="determinate"
-                            value={progressPercent}
-                            sx={{
-                              height: 6,
-                              borderRadius: 3,
-                              bgcolor: alpha(mainColor, isDark ? 0.1 : 0.08),
-                              "& .MuiLinearProgress-bar": {
+                                height: 5,
                                 borderRadius: 3,
-                                backgroundColor: mainColor,
-                              },
-                            }}
-                          />
+                                bgcolor: alpha(mainColor, isDark ? 0.1 : 0.1),
+                                "& .MuiLinearProgress-bar": {
+                                  borderRadius: 3,
+                                  backgroundColor: mainColor,
+                                },
+                              }}
+                            />
+                          </Box>
                         </Box>
 
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            bgcolor: isDark ? alpha("#fff", 0.03) : "#f8fafc",
-                            borderRadius: "12px",
-                            p: 1.5,
-                            border: 1,
-                            borderColor: isDark
-                              ? alpha("#fff", 0.05)
-                              : "divider",
-                            mt: "auto",
-                            position: "relative",
-                            zIndex: 1,
-                          }}
-                        >
-                          {[
-                            {
-                              label: "Total Tickets",
-                              icon: (
-                                <ConfirmationNumberOutlinedIcon
-                                  sx={{ fontSize: "18px", mb: 0.5 }}
-                                />
-                              ),
-                              value: item?.total_tickets?.[dateFilter],
-                              color: isDark ? "#4dabf5" : "#1976d2",
-                            },
-                            {
-                              label: "Active Tickets",
-                              icon: (
-                                <PendingActionsOutlinedIcon
-                                  sx={{ fontSize: "18px", mb: 0.5 }}
-                                />
-                              ),
-                              value: item?.active_tickets?.[dateFilter],
-                              color: isDark ? "#ffb74d" : "#f57c00",
-                            },
-                            {
-                              label: "Resolved Tickets",
-                              icon: (
-                                <CheckCircleOutlinedIcon
-                                  sx={{ fontSize: "18px", mb: 0.5 }}
-                                />
-                              ),
-                              value: item?.resolved?.[dateFilter],
-                              color: isDark ? "#81c784" : "#388e3c",
-                            },
-                            {
-                              label: "Closed Tickets",
-                              icon: (
-                                <LockOutlinedIcon
-                                  sx={{ fontSize: "18px", mb: 0.5 }}
-                                />
-                              ),
-                              value: item?.closed?.[dateFilter],
-                              color: isDark ? "#f48fb1" : "#d81b60",
-                            },
-                          ].map((stat, i, arr) => (
-                            <Box
-                              key={i}
-                              sx={{
-                                display: "flex",
-                                flex: 1,
-                                alignItems: "center",
-                              }}
-                            >
-                              <Tooltip title={stat.label} placement="top" arrow>
+                        {/* BOTTOM SECTION: 4-Column Stats */}
+                        <Box sx={{ width: "100%", zIndex: 1, mt: 2 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              bgcolor: isDark ? "transparent" : "#fff",
+                              borderRadius: "12px",
+                              p: 1.2,
+                              border: `1px solid ${isDark ? alpha("#fff", 0.1) : "#e2e8f0"}`,
+                            }}
+                          >
+                            {[
+                              {
+                                label: "Total",
+                                icon: (
+                                  <ConfirmationNumberOutlinedIcon
+                                    sx={{ fontSize: "18px" }}
+                                  />
+                                ),
+                                value: total,
+                                color: "#2962ff",
+                              },
+                              {
+                                label: "Active",
+                                icon: (
+                                  <PendingActionsOutlinedIcon
+                                    sx={{ fontSize: "18px" }}
+                                  />
+                                ),
+                                value: active,
+                                color: "#e65100",
+                              },
+                              {
+                                label: "Resolved",
+                                icon: (
+                                  <CheckCircleOutlinedIcon
+                                    sx={{ fontSize: "18px" }}
+                                  />
+                                ),
+                                value: resolved,
+                                color: "#2e7d32",
+                              },
+                              {
+                                label: "Closed",
+                                icon: (
+                                  <LockOutlinedIcon sx={{ fontSize: "18px" }} />
+                                ),
+                                value: closed,
+                                color: "#c2185b",
+                              },
+                            ].map((stat, i) => (
+                              <Tooltip
+                                key={i}
+                                title={stat.label}
+                                placement="top"
+                                arrow
+                              >
                                 <Box
                                   sx={{
-                                    flex: 1,
-                                    textAlign: "center",
                                     display: "flex",
                                     flexDirection: "column",
                                     alignItems: "center",
-                                    cursor: "pointer",
+                                    gap: 0.5,
                                   }}
                                 >
-                                  <Box
-                                    sx={{
-                                      color: "text.secondary",
-                                      display: "flex",
-                                    }}
-                                  >
+                                  <Box sx={{ color: "text.secondary" }}>
                                     {stat.icon}
                                   </Box>
                                   <Typography
                                     sx={{
                                       fontSize: "15px",
-                                      fontWeight: 800,
+                                      fontWeight: 900,
                                       color: stat.color,
-                                      lineHeight: 1.1,
+                                      lineHeight: 1,
                                     }}
                                   >
                                     <AnimatedCounter to={stat.value || 0} />
                                   </Typography>
                                 </Box>
                               </Tooltip>
-                              {i !== arr.length - 1 && (
-                                <Divider
-                                  orientation="vertical"
-                                  flexItem
-                                  sx={{
-                                    borderColor: isDark
-                                      ? alpha("#fff", 0.1)
-                                      : "divider",
-                                    height: "24px",
-                                    alignSelf: "center",
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          ))}
+                            ))}
+                          </Box>
                         </Box>
                       </Box>
                     </motion.div>
@@ -645,6 +612,52 @@ const ProjectSummaryCards = ({ dateFilter = "till_date" }) => {
                 })
               )}
             </MotionBox>
+
+            {/* 🔥 PREMIUM PAGINATION COMPONENT */}
+            {totalPages > 1 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mt: 4,
+                  pt: 2.5,
+                  borderTop: `1px dashed ${isDark ? alpha("#fff", 0.1) : alpha("#000", 0.1)}`,
+                }}
+              >
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(event, value) => setPage(value)}
+                  shape="rounded"
+                  variant="outlined"
+                  size="large"
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      borderColor: isDark
+                        ? alpha("#fff", 0.1)
+                        : alpha("#000", 0.15),
+                      color: "text.primary",
+                      transition: "all 0.3s ease",
+                      "&:hover": {
+                        bgcolor: isDark
+                          ? alpha("#2962ff", 0.2)
+                          : alpha("#2962ff", 0.1),
+                        borderColor: "#2962ff",
+                        color: isDark ? "#82b1ff" : "#2962ff",
+                      },
+                    },
+                    "& .Mui-selected": {
+                      bgcolor: "#2962ff !important",
+                      color: "#fff !important",
+                      borderColor: "#2962ff !important",
+                      boxShadow: "0 4px 12px rgba(41, 98, 255, 0.4)",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </motion.div>
         ) : (
           <AgentSummaryView

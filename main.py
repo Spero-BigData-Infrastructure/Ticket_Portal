@@ -105,8 +105,8 @@ async def dashboard_ws(websocket: WebSocket):
 
             status_data = await cached_query(
                 """
-                SELECT 
-                    CASE 
+                SELECT
+                    CASE
                         WHEN status_id = 1 THEN 'Open'
                         WHEN status_id = 2 THEN 'Pending'
                         WHEN status_id = 3 THEN 'Answered'
@@ -115,28 +115,41 @@ async def dashboard_ws(websocket: WebSocket):
                     END AS status,
 
                     SUM(
-                        CASE 
-                            WHEN DATE(created_at) = CURDATE()
-                            THEN 1 ELSE 0
+                        CASE
+                            WHEN t.status_id IN (1, 2, 3) AND DATE(t.created_at) = CURDATE()
+                                THEN 1
+                            WHEN t.status_id IN (4, 5) AND DATE(t.updated_at) = CURDATE()
+                                THEN 1
+                            ELSE 0
                         END
                     ) AS today,
 
                     SUM(
                         CASE
-                            WHEN MONTH(created_at) = MONTH(CURDATE())
-                            AND YEAR(created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
+                            WHEN t.status_id IN (1, 2, 3)
+                                AND MONTH(t.created_at) = MONTH(CURDATE())
+                                AND YEAR(t.created_at) = YEAR(CURDATE())
+                                THEN 1
+                            WHEN t.status_id IN (4, 5)
+                                AND MONTH(t.updated_at) = MONTH(CURDATE())
+                                AND YEAR(t.updated_at) = YEAR(CURDATE())
+                                THEN 1
+                            ELSE 0
                         END
                     ) AS this_month,
 
                     COUNT(*) AS till_date
 
-                FROM uv_ticket
+                FROM uv_ticket t
 
-                WHERE is_trashed != 1
+                INNER JOIN uv_user u
+                ON t.agent_id = u.id
+                AND u.is_enabled != 2
 
-                GROUP BY status_id
-                ORDER BY status_id
+                WHERE t.is_trashed != 1
+
+                GROUP BY t.status_id
+                ORDER BY t.status_id
                 """,
                 fetch="all"
             )
@@ -147,21 +160,30 @@ async def dashboard_ws(websocket: WebSocket):
 
             ticket_type_summary = await cached_query(
                 """
-                SELECT 
+                SELECT
                     tt.code AS ticket_type,
 
                     SUM(
-                        CASE 
-                            WHEN DATE(t.created_at) = CURDATE()
-                            THEN 1 ELSE 0
+                        CASE
+                            WHEN t.status_id IN (1, 2, 3) AND DATE(t.created_at) = CURDATE()
+                                THEN 1
+                            WHEN t.status_id IN (4, 5) AND DATE(t.updated_at) = CURDATE()
+                                THEN 1
+                            ELSE 0
                         END
                     ) AS today,
 
                     SUM(
                         CASE
-                            WHEN MONTH(t.created_at) = MONTH(CURDATE())
-                            AND YEAR(t.created_at) = YEAR(CURDATE())
-                            THEN 1 ELSE 0
+                            WHEN t.status_id IN (1, 2, 3)
+                                AND MONTH(t.created_at) = MONTH(CURDATE())
+                                AND YEAR(t.created_at) = YEAR(CURDATE())
+                                THEN 1
+                            WHEN t.status_id IN (4, 5)
+                                AND MONTH(t.updated_at) = MONTH(CURDATE())
+                                AND YEAR(t.updated_at) = YEAR(CURDATE())
+                                THEN 1
+                            ELSE 0
                         END
                     ) AS this_month,
 
@@ -171,6 +193,10 @@ async def dashboard_ws(websocket: WebSocket):
 
                 LEFT JOIN uv_ticket_type tt
                 ON t.type_id = tt.id
+
+                INNER JOIN uv_user u
+                ON t.agent_id = u.id
+                AND u.is_enabled != 2
 
                 WHERE t.is_trashed != 1
 
@@ -321,6 +347,8 @@ async def dashboard_ws(websocket: WebSocket):
     except Exception as e:
 
         print("WebSocket Error:", str(e))
+
+
 #############################################PROJECT SUMMARY############################################################
 @app.get("/api/project-summary")
 async def project_summary_api():
@@ -391,7 +419,7 @@ async def project_summary_api():
                 SUM(
                     CASE
                         WHEN t.status_id = 3
-                        AND DATE(t.updated_at) = CURDATE()
+                        AND DATE(t.created_at) = CURDATE()
                         THEN 1 ELSE 0
                     END
                 ) AS answered_today,
@@ -399,8 +427,8 @@ async def project_summary_api():
                 SUM(
                     CASE
                         WHEN t.status_id = 3
-                        AND MONTH(t.updated_at) = MONTH(CURDATE())
-                        AND YEAR(t.updated_at) = YEAR(CURDATE())
+                        AND MONTH(t.created_at) = MONTH(CURDATE())
+                        AND YEAR(t.created_at) = YEAR(CURDATE())
                         THEN 1 ELSE 0
                     END
                 ) AS answered_this_month,
@@ -500,7 +528,11 @@ async def project_summary_api():
                 '%')
             )
 
+            LEFT JOIN uv_user u
+            ON t.agent_id = u.id
+
             WHERE t.is_trashed != 1
+            AND u.is_enabled != 2
 
             GROUP BY st.id, st.name
 
@@ -754,7 +786,7 @@ async def project_agent_summary_api(project_id: int):
                 SUM(
                     CASE
                         WHEN t.status_id = 3
-                        AND DATE(t.updated_at) = CURDATE()
+                        AND DATE(t.created_at) = CURDATE()
                         THEN 1 ELSE 0
                     END
                 ) AS answered_today,
@@ -762,8 +794,8 @@ async def project_agent_summary_api(project_id: int):
                 SUM(
                     CASE
                         WHEN t.status_id = 3
-                        AND MONTH(t.updated_at) = MONTH(CURDATE())
-                        AND YEAR(t.updated_at) = YEAR(CURDATE())
+                        AND MONTH(t.created_at) = MONTH(CURDATE())
+                        AND YEAR(t.created_at) = YEAR(CURDATE())
                         THEN 1 ELSE 0
                     END
                 ) AS answered_this_month,
@@ -832,6 +864,7 @@ async def project_agent_summary_api(project_id: int):
 
             WHERE t.is_trashed != 1
             AND t.agent_id IS NOT NULL
+            AND u.is_enabled != 2
             AND t.subject LIKE CONCAT('%', '{project_keyword}', '%')
 
             GROUP BY t.agent_id
@@ -1226,8 +1259,9 @@ async def uvdesk_agent_summary(
 
     FROM uv_ticket t
 
-    LEFT JOIN uv_user a
+    INNER JOIN uv_user a
     ON t.agent_id = a.id
+    AND a.is_enabled != 2
 
     LEFT JOIN uv_user c
     ON t.customer_id = c.id
@@ -1301,12 +1335,19 @@ async def uvdesk_agent_summary(
                 "%Y-%m-%d"
             ).date()
 
-            created = (
-                r["created_at"].date()
-            )
+            if r["status_id"] in (4, 5):
+                date_to_check = (
+                    r["updated_at"].date()
+                    if r["updated_at"]
+                    else r["created_at"].date()
+                )
+            else:
+                date_to_check = (
+                    r["created_at"].date()
+                )
 
             if not (
-                fd <= created <= td
+                fd <= date_to_check <= td
             ):
                 continue
 
@@ -1670,6 +1711,8 @@ async def uvdesk_agent_summary(
 
             t.created_at,
 
+            t.updated_at,
+
             CASE
                 WHEN t.status_id = 5
                 THEN TIMESTAMPDIFF(
@@ -1686,8 +1729,9 @@ async def uvdesk_agent_summary(
 
         FROM uv_ticket t
 
-        LEFT JOIN uv_user u
+        INNER JOIN uv_user u
         ON t.agent_id = u.id
+        AND u.is_enabled != 2
 
         WHERE t.is_trashed != 1
         """
@@ -1761,13 +1805,20 @@ async def uvdesk_agent_summary(
 
             if use_date_filter:
 
-                created_date = r[
-                    "created_at"
-                ].date()
+                if r["status_id"] in (4, 5):
+                    date_to_check = (
+                        r["updated_at"].date()
+                        if r["updated_at"]
+                        else r["created_at"].date()
+                    )
+                else:
+                    date_to_check = (
+                        r["created_at"].date()
+                    )
 
                 if not (
                     from_date
-                    <= created_date
+                    <= date_to_check
                     <= to_date
                 ):
                     continue
@@ -1958,8 +2009,11 @@ async def download_uvdesk_report(
     if from_date and to_date:
 
         filters.append("""
-            DATE(t.created_at)
-            BETWEEN :from_date AND :to_date
+            (
+                (t.status_id IN (1, 2, 3) AND DATE(t.created_at) BETWEEN :from_date AND :to_date)
+                OR
+                (t.status_id IN (4, 5) AND DATE(t.updated_at) BETWEEN :from_date AND :to_date)
+            )
         """)
 
         params["from_date"] = from_date
@@ -2105,8 +2159,9 @@ async def download_uvdesk_report(
     LEFT JOIN uv_user c
     ON t.customer_id = c.id
 
-    LEFT JOIN uv_user a
+    INNER JOIN uv_user a
     ON t.agent_id = a.id
+    AND a.is_enabled != 2
 
     LEFT JOIN uv_ticket_type ty
     ON t.type_id = ty.id
@@ -2172,11 +2227,9 @@ async def download_uvdesk_report(
 
     FROM uv_ticket t
 
-    LEFT JOIN uv_user u
+    INNER JOIN uv_user u
     ON t.agent_id = u.id
-
-    LEFT JOIN uv_user a
-    ON t.agent_id = a.id
+    AND u.is_enabled != 2
 
     {where_clause}
 

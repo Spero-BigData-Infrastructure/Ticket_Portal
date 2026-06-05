@@ -416,7 +416,6 @@ function Report() {
     <Box
       sx={{
         width: "100%",
-      
       }}
     >
       <MotionBox
@@ -664,6 +663,29 @@ function Report() {
                 }}
               >
                 <Button
+                  variant="contained"
+                  startIcon={<FilterAltIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => fetchSummaryData()}
+                  sx={{
+                    height: "42px",
+                    background:
+                      "linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%)",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    borderRadius: "10px",
+                    px: 2.5,
+                    boxShadow: `0 4px 12px ${alpha("#3B82F6", 0.3)}`,
+                    "&:hover": {
+                      background:
+                        "linear-gradient(135deg, #4338CA 0%, #2563EB 100%)",
+                      boxShadow: `0 6px 16px ${alpha("#3B82F6", 0.45)}`,
+                    },
+                  }}
+                >
+                  Fetch Data
+                </Button>
+                <Button
                   variant="outlined"
                   startIcon={<RestartAltIcon sx={{ fontSize: 18 }} />}
                   onClick={handleReset}
@@ -687,29 +709,7 @@ function Report() {
                 >
                   Reset
                 </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<FilterAltIcon sx={{ fontSize: 18 }} />}
-                  onClick={() => fetchSummaryData()}
-                  sx={{
-                    height: "42px",
-                    background:
-                      "linear-gradient(135deg, #4F46E5 0%, #3B82F6 100%)",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    fontSize: "0.85rem",
-                    borderRadius: "10px",
-                    px: 2.5,
-                    boxShadow: `0 4px 12px ${alpha("#3B82F6", 0.3)}`,
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #4338CA 0%, #2563EB 100%)",
-                      boxShadow: `0 6px 16px ${alpha("#3B82F6", 0.45)}`,
-                    },
-                  }}
-                >
-                  Fetch Data
-                </Button>
+
                 <Button
                   variant="outlined"
                   disabled={isDownloading}

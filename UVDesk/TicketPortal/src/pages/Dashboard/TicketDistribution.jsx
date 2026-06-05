@@ -340,10 +340,11 @@ const TicketDistribution = ({ pieData = [], isLoading = false }) => {
                 />
               ))}
             </Pie>
-            <Tooltip
+            {/* <Tooltip
               content={<CustomTooltip />}
               cursor={{ fill: "transparent" }}
-            />
+              offset={40}
+            /> */}
           </PieChart>
         </ResponsiveContainer>
 
@@ -374,7 +375,7 @@ const TicketDistribution = ({ pieData = [], isLoading = false }) => {
               style={{ width: "100%" }}
             >
               <Typography
-                noWrap // Ye ensure karega ki text wrap na ho
+                noWrap
                 sx={{
                   width: "100%",
                   fontSize: "11px",
@@ -382,6 +383,10 @@ const TicketDistribution = ({ pieData = [], isLoading = false }) => {
                   fontWeight: 700,
                   textTransform: activeItem ? "none" : "uppercase",
                   letterSpacing: activeItem ? "0px" : "1px",
+                  // 🔥 Add these three lines to handle long text gracefully
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 {displayLabel}

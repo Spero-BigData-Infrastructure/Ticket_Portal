@@ -21,24 +21,23 @@ function App() {
   const [mode, setMode] = useState("light");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
- useEffect(() => {
-   const handleOnline = () => {
-     
-     window.location.reload();
-   };
+  useEffect(() => {
+    const handleOnline = () => {
+      window.location.reload();
+    };
 
-   const handleOffline = () => {
-     setIsOnline(false);
-   };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
 
-   window.addEventListener("online", handleOnline);
-   window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
-   return () => {
-     window.removeEventListener("online", handleOnline);
-     window.removeEventListener("offline", handleOffline);
-   };
- }, []);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const colorMode = useMemo(
     () => ({
@@ -65,6 +64,12 @@ function App() {
         <CssBaseline />
         <GlobalStyles
           styles={{
+            // 🔥 Yahan humne global transition add kiya hai 🔥
+            "body, div, p, span, button, h1, h2, h3, h4, h5, h6, svg, .MuiPaper-root, .MuiBox-root":
+              {
+                transition:
+                  "background 0.4s ease-in-out, background-color 0.4s ease-in-out, color 0.4s ease-in-out, border-color 0.4s ease-in-out, box-shadow 0.4s ease-in-out !important",
+              },
             "@keyframes pulse": {
               "0%, 100%": { opacity: 1 },
               "50%": { opacity: 0.5 },

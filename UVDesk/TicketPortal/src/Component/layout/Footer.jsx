@@ -57,7 +57,7 @@ const Footer = () => {
               objectFit: "contain",
               filter: isDark ? "brightness(0) invert(1)" : "none",
             }}
-          />
+          /> 
         </Link>
       </Typography>
     </Box>

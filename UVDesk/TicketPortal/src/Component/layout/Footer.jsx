@@ -1,6 +1,5 @@
 import { Box, Typography, Link, useTheme } from "@mui/material";
-// 🔥 Apna logo yahan import kar lena (path apne folder structure ke hisaab se adjust karein)
-// import speroLogo from "../../assets/logo.png";
+import speroLogo from "../../assets/Spero w-01 3 (1).png";
 
 const Footer = () => {
   const theme = useTheme();
@@ -50,14 +49,13 @@ const Footer = () => {
         >
           {/* 🔥 Spero Image Yahan Hai */}
           <img
-            src="../../../public/Spero w-01 3 (1).png" // Agar public folder mein hai toh aise direct de sakte hain, warna upar wala import use karein
+            src={speroLogo}
             alt="Spero"
             style={{
-              height: "30px", // Footer ki height ke hisaab se image ko scale kiya
+              height: "30px",
               width: "auto",
               objectFit: "contain",
-              
-              filter: isDark ? "brightness(0) invert(1)" : "none"
+              filter: isDark ? "brightness(0) invert(1)" : "none",
             }}
           />
         </Link>

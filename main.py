@@ -6,6 +6,8 @@ import asyncio
 import hashlib
 from io import BytesIO
 from datetime import datetime
+import base64
+import hashlib
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -2366,4 +2368,77 @@ async def download_uvdesk_report(
 
 
 
-    
+from fastapi import FastAPI, Request, Response
+from argon2 import PasswordHasher
+
+
+
+
+@app.get("/auth-check")
+async def auth_check(request: Request):
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        return Response(
+            status_code=401,
+            headers={
+                "WWW-Authenticate": "Basic"
+            }
+        )
+
+    try:
+        auth_type, credentials = auth_header.split()
+
+        decoded = base64.b64decode(credentials).decode()
+
+        email, password = decoded.split(":")
+
+    except Exception:
+        return Response(status_code=401)
+
+    # =====================================================
+    # FETCH USER FROM uv_user BY EMAIL
+    # =====================================================
+
+    query = """
+        SELECT id, password
+        FROM uv_user
+        WHERE email = :email
+        AND is_enabled != 2
+        LIMIT 1
+    """
+
+    user = await database.fetch_one(
+        query=query,
+        values={"email": email}
+    )
+
+    if not user:
+        return Response(
+            status_code=401,
+            headers={
+                "WWW-Authenticate": "Basic"
+            }
+        )
+
+    # =====================================================
+    # VERIFY ARGON2 PASSWORD
+    # =====================================================
+
+    try:
+
+
+        ph = PasswordHasher()
+
+        ph.verify(user["password"], password)
+
+    except Exception:
+        return Response(
+            status_code=401,
+            headers={
+                "WWW-Authenticate": "Basic"
+            }
+        )
+
+    return Response(status_code=200)

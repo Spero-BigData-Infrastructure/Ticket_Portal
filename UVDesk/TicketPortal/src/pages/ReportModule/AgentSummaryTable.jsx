@@ -1,4 +1,3 @@
-import  { useState } from "react";
 import {
   Typography,
   Paper,
@@ -38,25 +37,21 @@ export default function AgentSummaryTable({
   selectedAgentId,
   fetchAgentDetails,
   getStatusColor,
-  onSlaFilterChange, // <-- Is prop ka use karke hum API call karenge
+  slaFilter, // <-- Received from parent
+  onSlaFilterChange,
+  searchTerm, // <-- Received from parent
+  onSearchChange, // <-- Received from parent
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
+  // Local states HATA DIYE GAYE HAIN. Ab parent control karega.
 
-  // Local state for dropdown UI
-  const [slaFilter, setSlaFilter] = useState("all");
-
-  // Search filter (Agent Name ke liye)
+  // Search filter
   const filteredData =
     summaryData?.filter((row) =>
       row.agent_name?.toLowerCase().includes(searchTerm.toLowerCase()),
     ) || [];
 
-  // Jab Dropdown change hoga:
   const handleFilterChange = (e) => {
     const newValue = e.target.value;
-    setSlaFilter(newValue);
-
-    // Parent component ko batayega ki naya filter select hua hai (Taki API wapas call ho)
     if (onSlaFilterChange) {
       onSlaFilterChange(newValue);
     }
@@ -108,10 +103,9 @@ export default function AgentSummaryTable({
             <AssessmentIcon sx={{ color: "#2962ff" }} /> Agent Performance
           </Typography>
 
-          {/* SLA Filter Dropdown */}
           <FormControl size="small">
             <Select
-              value={slaFilter}
+              value={slaFilter} // <-- Using prop value
               onChange={handleFilterChange}
               displayEmpty
               startAdornment={
@@ -145,14 +139,12 @@ export default function AgentSummaryTable({
           </FormControl>
         </Box>
 
-        {/* Search Box */}
         <TextField
           size="small"
           placeholder="Search agent..."
-          value={searchTerm}
+          value={searchTerm} // <-- Using prop value
           onChange={(e) => {
-            setSearchTerm(e.target.value);
-            handleChangePage(null, 0);
+            onSearchChange(e.target.value); // <-- Triggering parent function
           }}
           InputProps={{
             startAdornment: (
@@ -177,7 +169,9 @@ export default function AgentSummaryTable({
         />
       </Box>
 
-      {/* Table Section */}
+      {/* Table and Pagination code remains exactly the same as yours */}
+      {/* ... */}
+
       <TableContainer
         sx={{
           border: 1,

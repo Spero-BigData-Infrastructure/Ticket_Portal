@@ -229,6 +229,8 @@ function Report() {
   const [agentTickets, setAgentTickets] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
@@ -298,12 +300,17 @@ function Report() {
     fetchSummaryData(fromDate, toDate, newSla);
   };
 
-  const handleReset = () => {
-    setFromDate("");
-    setToDate("");
-    setSlaFilter("all");
-    fetchSummaryData("", "", "all");
-  };
+const handleReset = () => {
+  setFromDate("");
+  setToDate("");
+  setSlaFilter("all");
+  setSearchTerm(""); // 🔥 Ye line text box ko clear karegi
+  setSelectedAgentId(null);
+  setSelectedAgentName("");
+  setAgentTickets([]);
+  setPage(0);
+  fetchSummaryData("", "", "all");
+};
 
   const fetchAgentDetails = async (agentId, agentName) => {
     if (selectedAgentId === agentId) {
@@ -798,8 +805,14 @@ function Report() {
             selectedAgentId={selectedAgentId}
             fetchAgentDetails={fetchAgentDetails}
             getStatusColor={getStatusColor}
+            // Naye props jo search aur dropdown ko control karenge:
             slaFilter={slaFilter}
             onSlaFilterChange={handleSlaFilterChange}
+            searchTerm={searchTerm}
+            onSearchChange={(newVal) => {
+              setSearchTerm(newVal);
+              setPage(0); // Type karte hi page 1 par wapas aane ke liye
+            }}
           />
         </MotionBox>
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Typography,
   Paper,
@@ -11,13 +12,13 @@ import {
   IconButton,
   Tooltip,
   TablePagination,
-  alpha,
   Box,
   TextField,
   InputAdornment,
   Select,
   MenuItem,
   FormControl,
+  TableSortLabel,
 } from "@mui/material";
 import {
   Assessment as AssessmentIcon,
@@ -25,6 +26,16 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
 } from "@mui/icons-material";
+
+// Headers mein 'type' add kiya hai tooltip ke logic ke liye
+const headCells = [
+  { id: "agent_name", label: "Agent Name", sortable: true, type: "string" },
+  { id: "total", label: "Total", sortable: true, type: "number" },
+  { id: "active", label: "Active", sortable: true, type: "number" },
+  { id: "resolved", label: "Resolved", sortable: true, type: "number" },
+  { id: "closed", label: "Closed", sortable: true, type: "number" },
+  { id: "action", label: "Action", sortable: false },
+];
 
 export default function AgentSummaryTable({
   isDark,
@@ -37,12 +48,14 @@ export default function AgentSummaryTable({
   selectedAgentId,
   fetchAgentDetails,
   getStatusColor,
-  slaFilter, // <-- Received from parent
+  slaFilter,
   onSlaFilterChange,
-  searchTerm, // <-- Received from parent
-  onSearchChange, // <-- Received from parent
+  searchTerm,
+  onSearchChange,
 }) {
-  // Local states HATA DIYE GAYE HAIN. Ab parent control karega.
+  // --- SORTING STATES ---
+  const [order, setOrder] = useState("desc");
+  const [orderBy, setOrderBy] = useState("total");
 
   // Search filter
   const filteredData =
@@ -54,6 +67,49 @@ export default function AgentSummaryTable({
     const newValue = e.target.value;
     if (onSlaFilterChange) {
       onSlaFilterChange(newValue);
+    }
+  };
+
+  // --- SORTING HANDLER ---
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  // --- SORTING LOGIC ---
+  const sortedData = [...filteredData].sort((a, b) => {
+    let valueA, valueB;
+
+    if (orderBy === "agent_name") {
+      valueA = a.agent_name?.toLowerCase() || "";
+      valueB = b.agent_name?.toLowerCase() || "";
+    } else {
+      valueA = a.summary?.[orderBy] || 0;
+      valueB = b.summary?.[orderBy] || 0;
+    }
+
+    if (valueA < valueB) {
+      return order === "asc" ? -1 : 1;
+    }
+    if (valueA > valueB) {
+      return order === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
+
+  // Tooltip Text Helper
+  const getSortTooltipTitle = (headCell) => {
+    if (!headCell.sortable) return "";
+    if (orderBy !== headCell.id) return "Click to sort";
+    if (headCell.type === "string") {
+      return order === "asc"
+        ? "Click to sort descending (Z-A)"
+        : "Click to sort ascending (A-Z)";
+    } else {
+      return order === "asc"
+        ? "Click to sort descending (Highest first)"
+        : "Click to sort ascending (Lowest first)";
     }
   };
 
@@ -105,7 +161,7 @@ export default function AgentSummaryTable({
 
           <FormControl size="small">
             <Select
-              value={slaFilter} // <-- Using prop value
+              value={slaFilter}
               onChange={handleFilterChange}
               displayEmpty
               startAdornment={
@@ -116,7 +172,7 @@ export default function AgentSummaryTable({
                 </InputAdornment>
               }
               sx={{
-                minWidth: 160,
+                minWidth: 180,
                 bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
                 color: isDark ? "#fff" : "#1e293b",
                 borderRadius: "8px",
@@ -133,8 +189,9 @@ export default function AgentSummaryTable({
               }}
             >
               <MenuItem value="all">All SLAs</MenuItem>
-              <MenuItem value="lt_48">Below 48 Hrs</MenuItem>
-              <MenuItem value="gt_48">After 48 Hrs</MenuItem>
+              {/* Updated logical names for SLA filter */}
+              <MenuItem value="lt_48">Within SLA </MenuItem>
+              <MenuItem value="gt_48">Out of SLA</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -142,9 +199,9 @@ export default function AgentSummaryTable({
         <TextField
           size="small"
           placeholder="Search agent..."
-          value={searchTerm} // <-- Using prop value
+          value={searchTerm}
           onChange={(e) => {
-            onSearchChange(e.target.value); // <-- Triggering parent function
+            onSearchChange(e.target.value);
           }}
           InputProps={{
             startAdornment: (
@@ -169,9 +226,6 @@ export default function AgentSummaryTable({
         />
       </Box>
 
-      {/* Table and Pagination code remains exactly the same as yours */}
-      {/* ... */}
-
       <TableContainer
         sx={{
           border: 1,
@@ -183,16 +237,10 @@ export default function AgentSummaryTable({
         <Table size="medium" sx={{ tableLayout: "fixed" }}>
           <TableHead>
             <TableRow>
-              {[
-                "Agent Name",
-                "Total",
-                "Active",
-                "Resolved",
-                "Closed",
-                "Action",
-              ].map((head) => (
+              {headCells.map((headCell) => (
                 <TableCell
-                  key={head}
+                  key={headCell.id}
+                  sortDirection={orderBy === headCell.id ? order : false}
                   sx={{
                     bgcolor: isDark ? "#1e293b" : "#f8fafc",
                     color: isDark ? "#94a3b8" : "#64748b",
@@ -200,14 +248,48 @@ export default function AgentSummaryTable({
                     borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                     whiteSpace: "nowrap",
                     width:
-                      head === "Agent Name"
+                      headCell.id === "agent_name"
                         ? "30%"
-                        : head === "Action"
+                        : headCell.id === "action"
                           ? "10%"
                           : "auto",
                   }}
                 >
-                  {head}
+                  {headCell.sortable ? (
+                    <Tooltip
+                      title={getSortTooltipTitle(headCell)}
+                      arrow
+                      placement="top"
+                    >
+                      <TableSortLabel
+                        active={orderBy === headCell.id}
+                        direction={orderBy === headCell.id ? order : "asc"}
+                        onClick={() => handleRequestSort(headCell.id)}
+                        sx={{
+                          "&.MuiTableSortLabel-root": {
+                            color: isDark ? "#94a3b8" : "#64748b",
+                          },
+                          "&.MuiTableSortLabel-root:hover": {
+                            color: isDark ? "#e2e8f0" : "#1e293b",
+                          },
+                          "&.Mui-active": {
+                            color: isDark
+                              ? "#fff !important"
+                              : "#0f172a !important",
+                          },
+                          "& .MuiTableSortLabel-icon": {
+                            color: isDark
+                              ? "#fff !important"
+                              : "#0f172a !important",
+                          },
+                        }}
+                      >
+                        {headCell.label}
+                      </TableSortLabel>
+                    </Tooltip>
+                  ) : (
+                    headCell.label
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -219,7 +301,7 @@ export default function AgentSummaryTable({
                   <CircularProgress size={30} sx={{ color: "#2962ff" }} />
                 </TableCell>
               </TableRow>
-            ) : filteredData.length === 0 ? (
+            ) : sortedData.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={6}
@@ -232,7 +314,7 @@ export default function AgentSummaryTable({
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData
+              sortedData
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row, idx) => {
                   const isSelected = selectedAgentId === row.agent_id;
@@ -344,7 +426,7 @@ export default function AgentSummaryTable({
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={filteredData.length}
+        count={sortedData.length}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}

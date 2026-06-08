@@ -15,6 +15,8 @@ import {
   Stack,
   alpha,
   TablePagination,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
@@ -45,13 +47,13 @@ export default function TicketDetailsTable({
   getStatusColor,
   formatDate,
 }) {
-  // --- Pagination States ---
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // Jab bhi naya agent select hoga, table automatic page 0 par reset ho jayegi
   useEffect(() => {
     setPage(0);
+    setStatusFilter("All");
   }, [selectedAgentId]);
 
   const handleChangePage = (event, newPage) => {
@@ -62,6 +64,11 @@ export default function TicketDetailsTable({
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
+
+  const filteredTickets = (agentTickets || []).filter((ticket) => {
+    if (statusFilter === "All") return true;
+    return ticket.status?.toLowerCase() === statusFilter.toLowerCase();
+  });
 
   if (!selectedAgentId) return null;
 
@@ -131,6 +138,7 @@ export default function TicketDetailsTable({
                 "Issue",
                 "Project",
                 "Type",
+                "Created",
                 "Status",
                 "Updated",
                 "SLA Hrs",
@@ -143,9 +151,35 @@ export default function TicketDetailsTable({
                     fontWeight: 600,
                     borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                     whiteSpace: "nowrap",
+                    padding: "8px 10px", // <-- YAHAN PADDING KAM KI HAI (Header)
                   }}
                 >
-                  {head}
+                  {head === "Status" ? (
+                    <Select
+                      value={statusFilter}
+                      onChange={(e) => {
+                        setStatusFilter(e.target.value);
+                        setPage(0);
+                      }}
+                      size="small"
+                      variant="standard"
+                      disableUnderline
+                      sx={{
+                        color: "inherit",
+                        fontWeight: 600,
+                        fontSize: "0.875rem",
+                        "& .MuiSelect-icon": { color: "inherit" },
+                      }}
+                    >
+                      <MenuItem value="All">Status (All)</MenuItem>
+                      <MenuItem value="Open">Open</MenuItem>
+                      <MenuItem value="Pending">Pending</MenuItem>
+                      <MenuItem value="Resolved">Resolved</MenuItem>
+                      <MenuItem value="Closed">Closed</MenuItem>
+                    </Select>
+                  ) : (
+                    head
+                  )}
                 </TableCell>
               ))}
             </TableRow>
@@ -153,23 +187,24 @@ export default function TicketDetailsTable({
           <TableBody>
             {loadingDetails ? (
               <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                   <CircularProgress size={28} sx={{ color: "#2962ff" }} />
                 </TableCell>
               </TableRow>
-            ) : !agentTickets || agentTickets.length === 0 ? (
+            ) : filteredTickets.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   align="center"
                   sx={{ py: 5, color: "text.secondary", fontWeight: 500 }}
                 >
-                  No tickets found for this agent.
+                  {statusFilter !== "All"
+                    ? `No ${statusFilter} tickets found for this agent.`
+                    : "No tickets found for this agent."}
                 </TableCell>
               </TableRow>
             ) : (
-              // 🔥 YAHAN FIX KIYA HAI: [...agentTickets].reverse() laga diya
-              [...agentTickets]
+              [...filteredTickets]
                 .reverse()
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((ticket, idx) => (
@@ -183,6 +218,7 @@ export default function TicketDetailsTable({
                         borderBottom: `1px solid ${
                           isDark ? "#1e293b" : "#f1f5f9"
                         }`,
+                        padding: "6px 10px", // <-- YAHAN PADDING KAM KI HAI (Body Cells)
                       },
                       "&:last-child td": { borderBottom: "none" },
                     }}
@@ -193,7 +229,7 @@ export default function TicketDetailsTable({
 
                     <TableCell
                       sx={{
-                        maxWidth: 280,
+                        maxWidth: 250, // Pehle 280 tha, isko bhi thoda tight kiya hai
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -219,6 +255,10 @@ export default function TicketDetailsTable({
 
                     <TableCell sx={{ color: "text.primary" }}>
                       {ticket.type || "-"}
+                    </TableCell>
+
+                    <TableCell sx={{ color: "text.primary" }}>
+                      {formatDate(ticket.added_date)}
                     </TableCell>
 
                     <TableCell>
@@ -260,12 +300,11 @@ export default function TicketDetailsTable({
         </Table>
       </TableContainer>
 
-      {/* Pagination Controls Footer */}
       {!loadingDetails && agentTickets && agentTickets.length > 0 && (
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={agentTickets.length}
+          count={filteredTickets.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

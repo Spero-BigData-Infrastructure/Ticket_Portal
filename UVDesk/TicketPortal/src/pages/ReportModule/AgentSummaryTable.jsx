@@ -19,12 +19,14 @@ import {
   MenuItem,
   FormControl,
   TableSortLabel,
+  Button, // <-- Added Button import
 } from "@mui/material";
 import {
   Assessment as AssessmentIcon,
   ChevronRight as ChevronRightIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
+  Refresh as RefreshIcon, // <-- Added Refresh Icon import
 } from "@mui/icons-material";
 
 const headCells = [
@@ -53,7 +55,6 @@ export default function AgentSummaryTable({
   onSearchChange,
 }) {
   // --- SORTING STATES ---
-  // Default sort by agent_name in ascending (alphabetical) order
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("agent_name");
 
@@ -75,17 +76,29 @@ export default function AgentSummaryTable({
     const isSameProperty = orderBy === property;
 
     if (isSameProperty) {
-      // Agar same column par click kiya hai, toh bas order toggle karo
       setOrder(order === "asc" ? "desc" : "asc");
     } else {
-      // Naye column par click karne par logic:
       const clickedHeadCell = headCells.find((cell) => cell.id === property);
-
-      // Agar number type hai, toh pehle highest (desc) aaye. String hai toh A-Z (asc).
       const defaultOrder = clickedHeadCell?.type === "number" ? "desc" : "asc";
-
       setOrder(defaultOrder);
       setOrderBy(property);
+    }
+  };
+
+  // --- RESET HANDLER ---
+  const handleReset = () => {
+    setOrder("asc");
+    setOrderBy("agent_name");
+
+    if (onSearchChange) {
+      onSearchChange("");
+    }
+    if (onSlaFilterChange) {
+      onSlaFilterChange("all");
+    }
+    if (handleChangePage) {
+      // Paginator ko pehle page (0) pe laane ke liye null event ke sath call karein
+      handleChangePage(null, 0);
     }
   };
 
@@ -110,7 +123,6 @@ export default function AgentSummaryTable({
     return 0;
   });
 
-  // Tooltip Text Helper
   const getSortTooltipTitle = (headCell) => {
     if (!headCell.sortable) return "";
     if (orderBy !== headCell.id) return "Click to sort";
@@ -207,34 +219,64 @@ export default function AgentSummaryTable({
           </FormControl>
         </Box>
 
-        <TextField
-          size="small"
-          placeholder="Search agent..."
-          value={searchTerm}
-          onChange={(e) => {
-            onSearchChange(e.target.value);
-          }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon
-                  sx={{ color: isDark ? "#94a3b8" : "#94a3b8", fontSize: 20 }}
-                />
-              </InputAdornment>
-            ),
-          }}
+        <Box
           sx={{
-            minWidth: { xs: "100%", sm: 250 },
-            "& .MuiOutlinedInput-root": {
-              bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
-              borderRadius: "8px",
-              color: isDark ? "#fff" : "#1e293b",
-              "& fieldset": { borderColor: isDark ? "#334155" : "#e2e8f0" },
-              "&:hover fieldset": { borderColor: "#2962ff" },
-              "&.Mui-focused fieldset": { borderColor: "#2962ff" },
-            },
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
           }}
-        />
+        >
+          <TextField
+            size="small"
+            placeholder="Search agent..."
+            value={searchTerm}
+            onChange={(e) => {
+              onSearchChange(e.target.value);
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon
+                    sx={{ color: isDark ? "#94a3b8" : "#94a3b8", fontSize: 20 }}
+                  />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              minWidth: { xs: "100%", sm: 250 },
+              "& .MuiOutlinedInput-root": {
+                bgcolor: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+                borderRadius: "8px",
+                color: isDark ? "#fff" : "#1e293b",
+                "& fieldset": { borderColor: isDark ? "#334155" : "#e2e8f0" },
+                "&:hover fieldset": { borderColor: "#2962ff" },
+                "&.Mui-focused fieldset": { borderColor: "#2962ff" },
+              },
+            }}
+          />
+
+          {/* --- RESET BUTTON ADDED HERE --- */}
+          <Button
+            variant="outlined"
+            onClick={handleReset}
+            startIcon={<RefreshIcon />}
+            sx={{
+              height: "40px",
+              borderRadius: "8px",
+              textTransform: "none",
+              color: isDark ? "#e2e8f0" : "#475569",
+              borderColor: isDark ? "#334155" : "#cbd5e1",
+              "&:hover": {
+                borderColor: "#2962ff",
+                backgroundColor: isDark ? "rgba(41, 98, 255, 0.08)" : "#eff6ff",
+                color: "#2962ff",
+              },
+            }}
+          >
+            Reset
+          </Button>
+        </Box>
       </Box>
 
       <TableContainer

@@ -27,7 +27,6 @@ import {
   FilterList as FilterIcon,
 } from "@mui/icons-material";
 
-// Headers mein 'type' add kiya hai tooltip ke logic ke liye
 const headCells = [
   { id: "agent_name", label: "Agent Name", sortable: true, type: "string" },
   { id: "total", label: "Total", sortable: true, type: "number" },
@@ -54,8 +53,9 @@ export default function AgentSummaryTable({
   onSearchChange,
 }) {
   // --- SORTING STATES ---
-  const [order, setOrder] = useState("desc");
-  const [orderBy, setOrderBy] = useState("total");
+  // Default sort by agent_name in ascending (alphabetical) order
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("agent_name");
 
   // Search filter
   const filteredData =
@@ -72,9 +72,21 @@ export default function AgentSummaryTable({
 
   // --- SORTING HANDLER ---
   const handleRequestSort = (property) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
+    const isSameProperty = orderBy === property;
+
+    if (isSameProperty) {
+      // Agar same column par click kiya hai, toh bas order toggle karo
+      setOrder(order === "asc" ? "desc" : "asc");
+    } else {
+      // Naye column par click karne par logic:
+      const clickedHeadCell = headCells.find((cell) => cell.id === property);
+
+      // Agar number type hai, toh pehle highest (desc) aaye. String hai toh A-Z (asc).
+      const defaultOrder = clickedHeadCell?.type === "number" ? "desc" : "asc";
+
+      setOrder(defaultOrder);
+      setOrderBy(property);
+    }
   };
 
   // --- SORTING LOGIC ---
@@ -189,7 +201,6 @@ export default function AgentSummaryTable({
               }}
             >
               <MenuItem value="all">All SLAs</MenuItem>
-              {/* Updated logical names for SLA filter */}
               <MenuItem value="lt_48">Within SLA </MenuItem>
               <MenuItem value="gt_48">Out of SLA</MenuItem>
             </Select>

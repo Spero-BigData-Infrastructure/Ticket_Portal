@@ -37,6 +37,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 import AgentSummaryTable from "./AgentSummaryTable";
 import TicketDetailsTable from "./TicketDetailsTable";
+import MasterTicketTable from "./MasterTicketTable"; // 🔥 MASTER TABLE IMPORT
 
 const MotionPaper = motion(Paper);
 const MotionBox = motion(Box);
@@ -64,12 +65,12 @@ const StatCard = ({ title, value, color, icon, delay = 0 }) => {
       sx={{
         position: "relative",
         overflow: "hidden",
-        height: "100%", // 🔥 Ensures full height
-        width: "100%", // 🔥 Ensures it takes full column width
+        height: "100%",
+        width: "100%",
         minHeight: { xs: 90, sm: 100 },
         px: { xs: 1.5, sm: 2 },
         py: { xs: 1.5, sm: 2 },
-        borderRadius: "24px",
+        borderRadius: "20px",
         background: isDark
           ? `linear-gradient(135deg, ${color}25 0%, ${color}10 45%, ${theme.palette.background.paper} 100%)`
           : `linear-gradient(135deg, ${color}14 0%, ${color}08 45%, #ffffff 100%)`,
@@ -79,7 +80,6 @@ const StatCard = ({ title, value, color, icon, delay = 0 }) => {
           : "0 10px 30px rgba(0,0,0,0.04)",
         display: "flex",
         alignItems: "center",
-        cursor: "pointer",
       }}
     >
       <Box
@@ -213,7 +213,9 @@ function Report() {
   const isDark = theme.palette.mode === "dark";
 
   const ticketSectionRef = useRef(null);
+  const masterTicketRef = useRef(null); // 🔥 Scroll ref for master table
 
+  // --- PURANE STATES ---
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [slaFilter, setSlaFilter] = useState("all");
@@ -228,8 +230,12 @@ function Report() {
   const [selectedAgentName, setSelectedAgentName] = useState("");
   const [agentTickets, setAgentTickets] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
-
   const [searchTerm, setSearchTerm] = useState("");
+
+  // --- STATES FOR TICKETS & KPI CLICKS ---
+  const [ticketDetails, setTicketDetails] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [activeStatus, setActiveStatus] = useState(null);
 
   const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
@@ -246,6 +252,7 @@ function Report() {
     }
   };
 
+  // Agent table scroll
   useEffect(() => {
     if (selectedAgentId && ticketSectionRef.current) {
       const timer = setTimeout(() => {
@@ -295,22 +302,69 @@ function Report() {
     }
   };
 
+  const fetchTicketsByStatus = async (
+    statusType,
+    start = fromDate,
+    end = toDate,
+  ) => {
+    setLoadingTickets(true);
+    setActiveStatus(statusType);
+
+    try {
+      const payload = {
+        from_date: start || null,
+        to_date: end || null,
+        status: statusType === "total" ? null : statusType,
+      };
+
+      const response = await fetch(
+        "http://192.168.1.204:8558/api/ticket-details",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.status && result.data) {
+        setTicketDetails(result.data);
+      } else {
+        setTicketDetails([]);
+      }
+    } catch (error) {
+      console.error("Error fetching ticket details:", error);
+      setTicketDetails([]);
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
   const handleSlaFilterChange = (newSla) => {
     setSlaFilter(newSla);
     fetchSummaryData(fromDate, toDate, newSla);
   };
 
-const handleReset = () => {
-  setFromDate("");
-  setToDate("");
-  setSlaFilter("all");
-  setSearchTerm(""); // 🔥 Ye line text box ko clear karegi
-  setSelectedAgentId(null);
-  setSelectedAgentName("");
-  setAgentTickets([]);
-  setPage(0);
-  fetchSummaryData("", "", "all");
-};
+  const handleReset = () => {
+    setFromDate("");
+    setToDate("");
+    setSlaFilter("all");
+    setSearchTerm("");
+    setSelectedAgentId(null);
+    setSelectedAgentName("");
+    setAgentTickets([]);
+    setPage(0);
+    setActiveStatus(null);
+    fetchSummaryData("", "", "all");
+  };
+
+  const handleFetchAllData = () => {
+    fetchSummaryData();
+    if (activeStatus) {
+      fetchTicketsByStatus(activeStatus);
+    }
+  };
 
   const fetchAgentDetails = async (agentId, agentName) => {
     if (selectedAgentId === agentId) {
@@ -394,24 +448,28 @@ const handleReset = () => {
 
   const kpiData = [
     {
+      id: "total",
       title: "Total Tickets",
       count: overallKpi.total || 0,
       color: "#4F46E5",
       icon: <DescriptionIcon />,
     },
     {
+      id: "active",
       title: "Active",
       count: overallKpi.active || 0,
       color: "#F59E0B",
       icon: <FolderOpenIcon />,
     },
     {
+      id: "resolved",
       title: "Resolved",
       count: overallKpi.resolved || 0,
       color: "#06B6D4",
       icon: <CheckCircleOutlineIcon />,
     },
     {
+      id: "closed",
       title: "Closed",
       count: overallKpi.closed || 0,
       color: "#EF4444",
@@ -420,11 +478,7 @@ const handleReset = () => {
   ];
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-      }}
-    >
+    <Box sx={{ width: "100%" }}>
       <MotionBox
         key="report-page"
         variants={pageContainerVariants}
@@ -545,14 +599,14 @@ const handleReset = () => {
           </MotionBox>
         </Box>
 
-        {/* FILTERS & KPI SECTION */}
+        {/* FILTERS SECTION */}
         <MotionBox variants={contentVariants}>
           <Paper
             elevation={0}
             sx={{
               p: { xs: 2.5, md: 3 },
               mb: 2.5,
-              width: "100%", // 🔥 Ensures Paper takes full width
+              width: "100%",
               borderRadius: "20px",
               background: isDark
                 ? "linear-gradient(145deg, rgba(22,28,45,0.9) 0%, rgba(15,23,42,0.98) 100%)"
@@ -672,7 +726,7 @@ const handleReset = () => {
                 <Button
                   variant="contained"
                   startIcon={<FilterAltIcon sx={{ fontSize: 18 }} />}
-                  onClick={() => fetchSummaryData()}
+                  onClick={handleFetchAllData}
                   sx={{
                     height: "42px",
                     background:
@@ -761,36 +815,88 @@ const handleReset = () => {
               }}
             />
 
-            {/* 🔥 GRID STRETCH FIX */}
+            {/* KPI CARDS SECTION (Clickable) */}
             <Grid
               container
               spacing={2}
               alignItems="stretch"
               sx={{ width: "100%", m: 0 }}
             >
-              {kpiData.map((kpi, idx) => (
-                <Grid
-                  item
-                  xs={12}
-                  sm={6}
-                  md={3}
-                  key={idx}
-                  sx={{ display: "flex", p: { xs: 1, sm: 2 } }}
-                >
-                  <Box sx={{ width: "100%", height: "100%" }}>
-                    <StatCard
-                      title={kpi.title}
-                      value={kpi.count}
-                      color={kpi.color}
-                      icon={kpi.icon}
-                      delay={idx * 0.05}
-                    />
-                  </Box>
-                </Grid>
-              ))}
+              {kpiData.map((kpi, idx) => {
+                const isActive = activeStatus === kpi.id;
+
+                return (
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                    md={3}
+                    key={idx}
+                    sx={{ display: "flex", p: { xs: 1, sm: 2 } }}
+                  >
+                    <Box
+                      onClick={() => {
+                        fetchTicketsByStatus(kpi.id);
+                        // 🔥 YAHAN SCROLL LOGIC HAI
+                        setTimeout(() => {
+                          if (masterTicketRef.current) {
+                            masterTicketRef.current.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                          }
+                        }, 200);
+                      }}
+                      sx={{
+                        width: "100%",
+                        height: "100%",
+                        cursor: "pointer",
+                        transform: isActive ? "scale(1.03)" : "none",
+                        transition: "all 0.2s ease-in-out",
+                        boxShadow: isActive
+                          ? `0 8px 25px ${kpi.color}50`
+                          : "none",
+                        borderRadius: "24px",
+                        border: isActive
+                          ? `2px solid ${kpi.color}`
+                          : "2px solid transparent",
+                      }}
+                    >
+                      <StatCard
+                        title={kpi.title}
+                        value={kpi.count}
+                        color={kpi.color}
+                        icon={kpi.icon}
+                        delay={idx * 0.05}
+                      />
+                    </Box>
+                  </Grid>
+                );
+              })}
             </Grid>
           </Paper>
         </MotionBox>
+
+        {/* 🔥 YAHAN SCROLL HOGA MASTER TABLE KE LIYE */}
+        <div ref={masterTicketRef} style={{ scrollMarginTop: "24px" }}></div>
+
+        {/* 🔥 MASTER TICKET TABLE COMPONENT */}
+        <AnimatePresence>
+          {activeStatus && (
+            <Box sx={{ mb: 3 }}>
+              <MasterTicketTable
+                ticketDetails={ticketDetails}
+                loadingTickets={loadingTickets}
+                isDark={isDark}
+                theme={theme}
+                getStatusColor={getStatusColor}
+                formatDate={formatDate}
+                activeStatus={activeStatus}
+                onClose={() => setActiveStatus(null)}
+              />
+            </Box>
+          )}
+        </AnimatePresence>
 
         {/* AGENT SUMMARY TABLE */}
         <MotionBox variants={contentVariants}>
@@ -805,20 +911,20 @@ const handleReset = () => {
             selectedAgentId={selectedAgentId}
             fetchAgentDetails={fetchAgentDetails}
             getStatusColor={getStatusColor}
-            // Naye props jo search aur dropdown ko control karenge:
             slaFilter={slaFilter}
             onSlaFilterChange={handleSlaFilterChange}
             searchTerm={searchTerm}
             onSearchChange={(newVal) => {
               setSearchTerm(newVal);
-              setPage(0); // Type karte hi page 1 par wapas aane ke liye
+              setPage(0);
             }}
           />
         </MotionBox>
 
+        {/* YAHAN SCROLL HOGA AGENT TABLE KE LIYE */}
         <div ref={ticketSectionRef} style={{ scrollMarginTop: "16px" }} />
 
-        {/* TICKET DETAILS TABLE */}
+        {/* TICKET DETAILS TABLE (Agent Specific) */}
         <AnimatePresence>
           {selectedAgentId && (
             <Box mt={3}>

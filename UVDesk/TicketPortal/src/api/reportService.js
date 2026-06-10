@@ -1,4 +1,5 @@
-import axiosInstance from "./axiosInstance"; 
+import axiosInstance from "./axiosInstance";
+
 const reportService = {
   /**
    * Fetch the summary of all agents
@@ -6,7 +7,10 @@ const reportService = {
    */
   getAgentSummary: async (payload) => {
     // Bina try/catch ke seedha call aur return
-    const response = await axiosInstance.post("/api/uvdesk-agent-summary", payload);
+    const response = await axiosInstance.post(
+      "/api/uvdesk-agent-summary",
+      payload,
+    );
     return response.data;
   },
 
@@ -16,6 +20,15 @@ const reportService = {
    */
   getAgentDetails: async (payload) => {
     const response = await axiosInstance.post("/api/uvdesk-agent", payload);
+    return response.data;
+  },
+
+  /**
+   * Fetch master ticket details based on status (KPI Click)
+   * @param {Object} payload - { from_date, to_date, status }
+   */
+  getMasterTicketDetails: async (payload) => {
+    const response = await axiosInstance.post("/api/ticket-details", payload);
     return response.data;
   },
 

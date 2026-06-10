@@ -38,6 +38,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import AgentSummaryTable from "./AgentSummaryTable";
 import TicketDetailsTable from "./TicketDetailsTable";
 import MasterTicketTable from "./MasterTicketTable"; // 🔥 MASTER TABLE IMPORT
+import { API_URL } from "../../config/api";
 
 const MotionPaper = motion(Paper);
 const MotionBox = motion(Box);
@@ -302,44 +303,36 @@ function Report() {
     }
   };
 
-  const fetchTicketsByStatus = async (
-    statusType,
-    start = fromDate,
-    end = toDate,
-  ) => {
-    setLoadingTickets(true);
-    setActiveStatus(statusType);
+const fetchTicketsByStatus = async (
+  statusType,
+  start = fromDate,
+  end = toDate,
+) => {
+  setLoadingTickets(true);
+  setActiveStatus(statusType);
 
-    try {
-      const payload = {
-        from_date: start || null,
-        to_date: end || null,
-        status: statusType === "total" ? null : statusType,
-      };
+  try {
+    const payload = {
+      from_date: start || null,
+      to_date: end || null,
+      status: statusType === "total" ? null : statusType,
+    };
 
-      const response = await fetch(
-        "http://192.168.1.204:8558/api/ticket-details",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+    // 🔥 Yahan raw fetch ki jagah service use kiya hai
+    const data = await reportService.getMasterTicketDetails(payload);
 
-      const result = await response.json();
-
-      if (result.status && result.data) {
-        setTicketDetails(result.data);
-      } else {
-        setTicketDetails([]);
-      }
-    } catch (error) {
-      console.error("Error fetching ticket details:", error);
+    if (data && data.status && data.data) {
+      setTicketDetails(data.data);
+    } else {
       setTicketDetails([]);
-    } finally {
-      setLoadingTickets(false);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching ticket details:", error);
+    setTicketDetails([]);
+  } finally {
+    setLoadingTickets(false);
+  }
+};
 
   const handleSlaFilterChange = (newSla) => {
     setSlaFilter(newSla);

@@ -2370,12 +2370,16 @@ async def download_uvdesk_report(
 
 from fastapi import FastAPI, Request, Response
 from argon2 import PasswordHasher
+from datetime import datetime, timedelta
+
 
 
 
 
 @app.get("/auth-check")
 async def auth_check(request: Request):
+
+    print("AUTH CHECK HIT")
 
     auth_header = request.headers.get("Authorization")
 
@@ -2390,15 +2394,22 @@ async def auth_check(request: Request):
     try:
         auth_type, credentials = auth_header.split()
 
-        decoded = base64.b64decode(credentials).decode()
+        decoded = base64.b64decode(
+            credentials
+        ).decode()
 
-        email, password = decoded.split(":")
+        email, password = decoded.split(":", 1)
 
     except Exception:
-        return Response(status_code=401)
+        return Response(
+            status_code=401,
+            headers={
+                "WWW-Authenticate": "Basic"
+            }
+        )
 
     # =====================================================
-    # FETCH USER FROM uv_user BY EMAIL
+    # FETCH USER
     # =====================================================
 
     query = """
@@ -2411,7 +2422,9 @@ async def auth_check(request: Request):
 
     user = await database.fetch_one(
         query=query,
-        values={"email": email}
+        values={
+            "email": email
+        }
     )
 
     if not user:
@@ -2423,21 +2436,105 @@ async def auth_check(request: Request):
         )
 
     # =====================================================
-    # VERIFY ARGON2 PASSWORD
+    # VERIFY PASSWORD
     # =====================================================
 
     try:
 
-
         ph = PasswordHasher()
 
-        ph.verify(user["password"], password)
+        ph.verify(
+            user["password"],
+            password
+        )
 
     except Exception:
+
         return Response(
             status_code=401,
             headers={
                 "WWW-Authenticate": "Basic"
+            }
+        )
+
+    # =====================================================
+    # CHECK EXISTING SESSION
+    # =====================================================
+
+    session_query = """
+        SELECT last_activity
+        FROM auth_sessions
+        WHERE username = :username
+        LIMIT 1
+    """
+
+    session = await database.fetch_one(
+        query=session_query,
+        values={
+            "username": email
+        }
+    )
+
+    if session:
+
+        last_activity = session["last_activity"]
+
+        print("Python Now:", datetime.now())
+        print("DB Last Activity:", last_activity)
+        print("Difference:", datetime.now() - last_activity)
+
+        if datetime.now() - last_activity > timedelta(minutes=10):
+
+            await database.execute(
+                query="""
+                    DELETE
+                    FROM auth_sessions
+                    WHERE username = :username
+                """,
+                values={
+                    "username": email
+                }
+            )
+
+            return Response(
+                status_code=401,
+                headers={
+                    "WWW-Authenticate": "Basic"
+                }
+            )
+
+        # Update activity timestamp
+
+        await database.execute(
+            query="""
+                UPDATE auth_sessions
+                SET last_activity = NOW()
+                WHERE username = :username
+            """,
+            values={
+                "username": email
+            }
+        )
+
+    else:
+
+        # First Login
+
+        await database.execute(
+            query="""
+                INSERT INTO auth_sessions
+                (
+                    username,
+                    last_activity
+                )
+                VALUES
+                (
+                    :username,
+                    NOW()
+                )
+            """,
+            values={
+                "username": email
             }
         )
 

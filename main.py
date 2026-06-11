@@ -669,15 +669,16 @@ async def project_agent_summary_api(project_id: int):
         # GET PROJECT NAME
         # =====================================
 
-        project_query = f"""
+        project_query = """
             SELECT name
             FROM uv_support_team
-            WHERE id = {project_id}
+            WHERE id = :project_id
             LIMIT 1
         """
 
         project_row = await cached_query(
             project_query,
+            values={"project_id": project_id},
             fetch="one"
         )
 

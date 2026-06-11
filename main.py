@@ -725,12 +725,12 @@ async def project_agent_summary_api(project_id: int):
         # MAIN QUERY
         # =====================================
 
-        query = f"""
+        query = """
             SELECT
 
-                {project_id} AS project_id,
+                %s AS project_id,
 
-                '{project_name}' AS project_name,
+                %s AS project_name,
 
                 CONCAT(u.first_name, ' ', u.last_name) AS agent_name,
 
@@ -867,7 +867,7 @@ async def project_agent_summary_api(project_id: int):
             WHERE t.is_trashed != 1
             AND t.agent_id IS NOT NULL
             AND u.is_enabled != 2
-            AND t.subject LIKE CONCAT('%', '{project_keyword}', '%')
+            AND t.subject LIKE CONCAT('%', %s, '%')
 
             GROUP BY t.agent_id
 

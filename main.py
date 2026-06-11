@@ -4,6 +4,7 @@ import time
 import json
 import asyncio
 import hashlib
+import logging
 from io import BytesIO
 from datetime import datetime
 import base64
@@ -37,6 +38,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 app.add_middleware(
@@ -653,10 +655,10 @@ async def project_summary_api():
         }
 
     except Exception as e:
-
+        logger.exception("Unhandled error in project_summary_api")
         return {
             "status": False,
-            "message": str(e)
+            "message": "An internal error occurred."
         }
 
 #########################################project wise agent summary###############################################################
@@ -981,9 +983,10 @@ async def project_agent_summary_api(project_id: int):
         }
 
     except Exception as e:
+        logger.exception("Unhandled error in project_agent_summary_api")
         return {
             "status": False,
-            "message": str(e)
+            "message": "An internal error occurred."
         }
 
 

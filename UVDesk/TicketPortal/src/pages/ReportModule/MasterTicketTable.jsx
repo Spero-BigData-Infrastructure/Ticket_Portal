@@ -288,8 +288,8 @@ export default function MasterTicketTable({
                         }}
                       >
                         <MenuItem value="All">SLA (All)</MenuItem>
-                        <MenuItem value="lt_48">&lt; 48 Hrs</MenuItem>
-                        <MenuItem value="gt_48">&gt; 48 Hrs</MenuItem>
+                        <MenuItem value="lt_48">Within SLA 48 Hrs</MenuItem>
+                        <MenuItem value="gt_48">Out of SLA 48 Hrs</MenuItem>
                       </Select>
                     ) : (
                       head

@@ -9,31 +9,18 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
-  IconButton,
-  Tooltip,
   Chip,
   Stack,
   alpha,
   TablePagination,
   Select,
   MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Avatar,
-  Box,
-  Backdrop,
 } from "@mui/material";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ReceiptLongOutlined as ReceiptIcon,
-  Close as CloseIcon,
-  QuestionAnswerOutlined as ChatIcon,
-  AccountCircleOutlined as PersonIcon,
-} from "@mui/icons-material";
+import { motion } from "framer-motion";
+import { ReceiptLongOutlined as ReceiptIcon } from "@mui/icons-material";
 
-// 🔥 Import API Service
-import reportService from "../../api/reportService";
+// 🔥 Import Reusable Chat Modal Component
+import TicketChatModal from "./TicketChatModal";
 
 const MotionPaper = motion(Paper);
 
@@ -47,60 +34,31 @@ const detailCardVariants = {
   exit: { opacity: 0, y: 15, transition: { duration: 0.2 } },
 };
 
-// 🔥 Chat Stagger Animation Variants
-const chatContainerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.15, // Ek ke baad ek bubble aayega
-    },
-  },
-};
-
-const chatBubbleVariants = {
-  hidden: { opacity: 0, x: -30, scale: 0.95 },
-  visible: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-    transition: { type: "spring", stiffness: 250, damping: 20 },
-  },
-};
-
-// Helper function: HTML decode karne ke liye
-const decodeHTML = (htmlStr) => {
-  if (!htmlStr) return "";
-  const txt = document.createElement("textarea");
-  txt.innerHTML = htmlStr;
-  return txt.value;
-};
-
-export default function TicketDetailsTable({
+export default function MasterTicketTable({
   isDark,
   theme,
-  selectedAgentId,
-  selectedAgentName,
-  loadingDetails,
-  agentTickets,
-  setSelectedAgentId,
+  loadingTickets, // loading state for all tickets
+  allTickets, // Array of all tickets across the system
   getStatusColor,
   formatDate,
 }) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10); // Master table ke liye default 10 sahi rahega
   const [statusFilter, setStatusFilter] = useState("All");
+  const [agentFilter, setAgentFilter] = useState("All");
 
-  // Chat Modal States
+  // Chat Modal Trigger States
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [activeTicketForChat, setActiveTicketForChat] = useState(null);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [loadingChat, setLoadingChat] = useState(false);
+
+  // Extract unique agents for the dropdown filter
+  const uniqueAgents = Array.from(
+    new Set((allTickets || []).map((t) => t.agent_name).filter(Boolean)),
+  );
 
   useEffect(() => {
     setPage(0);
-    setStatusFilter("All");
-  }, [selectedAgentId]);
+  }, [statusFilter, agentFilter]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -111,49 +69,22 @@ export default function TicketDetailsTable({
     setPage(0);
   };
 
-  const filteredTickets = (agentTickets || []).filter((ticket) => {
-    if (statusFilter === "All") return true;
-    return ticket.status?.toLowerCase() === statusFilter.toLowerCase();
+  // Multiple Filters logic: Status and Agent
+  const filteredTickets = (allTickets || []).filter((ticket) => {
+    const matchesStatus =
+      statusFilter === "All" ||
+      ticket.status?.toLowerCase() === statusFilter.toLowerCase();
+
+    const matchesAgent =
+      agentFilter === "All" || ticket.agent_name === agentFilter;
+
+    return matchesStatus && matchesAgent;
   });
 
-  const handleTicketClick = async (ticket) => {
-    let actualTicketId = ticket.ticket_id || ticket.id;
-
-    if (!actualTicketId) {
-      console.error("Ticket ID missing!");
-      return;
-    }
-
-    actualTicketId = String(actualTicketId).replace("#", "");
-
+  const handleTicketClick = (ticket) => {
     setActiveTicketForChat(ticket);
     setChatDialogOpen(true);
-    setLoadingChat(true);
-
-    try {
-      const result = await reportService.getTicketChat(actualTicketId);
-      if (result && result.success && result.chat) {
-        setChatHistory(result.chat);
-      } else {
-        setChatHistory([]);
-      }
-    } catch (error) {
-      console.error("Error fetching chat:", error);
-      setChatHistory([]);
-    } finally {
-      setLoadingChat(false);
-    }
   };
-
-  const closeChatDialog = () => {
-    setChatDialogOpen(false);
-    setTimeout(() => {
-      setActiveTicketForChat(null);
-      setChatHistory([]);
-    }, 300); // Wait for exit animation to finish
-  };
-
-  if (!selectedAgentId) return null;
 
   return (
     <>
@@ -168,21 +99,23 @@ export default function TicketDetailsTable({
           borderRadius: "16px",
           bgcolor: isDark ? "#111827" : "#fff",
           border: 2,
-          borderColor: "#2962ff",
+          borderColor: "#0284c7", // Diff color for differentiation (Sky blue tone)
           mb: 4,
           boxShadow: isDark
-            ? "0px 8px 30px rgba(41, 98, 255, 0.1)"
-            : "0px 12px 40px rgba(41, 98, 255, 0.15)",
+            ? "0px 8px 30px rgba(2, 132, 199, 0.1)"
+            : "0px 12px 40px rgba(2, 132, 199, 0.15)",
         }}
       >
+        {/* Header Stack */}
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
-          alignItems="center"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          gap={2}
           mb={3}
         >
           <Typography
-            variant="subtitle1"
+            variant="h6"
             fontWeight="700"
             sx={{
               display: "flex",
@@ -191,21 +124,43 @@ export default function TicketDetailsTable({
               color: isDark ? "#fff" : "#1e293b",
             }}
           >
-            <ReceiptIcon sx={{ color: "#2962ff" }} />
-            Tickets assigned to:{" "}
-            <span style={{ color: "#2962ff", marginLeft: "4px" }}>
-              {selectedAgentName}
-            </span>
+            <ReceiptIcon sx={{ color: "#0284c7" }} />
+            Master Tickets Dashboard
           </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setSelectedAgentId(null)}
-            sx={{ bgcolor: isDark ? alpha("#fff", 0.05) : alpha("#000", 0.04) }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
+
+          {/* Agent Filter Dropdown (Header control) */}
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography
+              variant="body2"
+              sx={{ color: isDark ? "#94a3b8" : "#64748b", fontWeight: 500 }}
+            >
+              Filter Agent:
+            </Typography>
+            <Select
+              value={agentFilter}
+              onChange={(e) => setAgentFilter(e.target.value)}
+              size="small"
+              sx={{
+                minWidth: 150,
+                color: isDark ? "#fff" : "#1e293b",
+                bgcolor: isDark ? "#1e293b" : "#f8fafc",
+                borderRadius: "8px",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: isDark ? "#334155" : "#e2e8f0",
+                },
+              }}
+            >
+              <MenuItem value="All">All Agents</MenuItem>
+              {uniqueAgents.map((agent) => (
+                <MenuItem key={agent} value={agent}>
+                  {agent}
+                </MenuItem>
+              ))}
+            </Select>
+          </Stack>
         </Stack>
 
+        {/* Table Container */}
         <TableContainer
           sx={{
             border: 1,
@@ -219,6 +174,7 @@ export default function TicketDetailsTable({
               <TableRow>
                 {[
                   "Ticket ID",
+                  "Assigned To", // Added Agent Name Column
                   "Issue",
                   "Project",
                   "Type",
@@ -235,16 +191,13 @@ export default function TicketDetailsTable({
                       fontWeight: 600,
                       borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                       whiteSpace: "nowrap",
-                      padding: "8px 10px",
+                      padding: "10px 12px",
                     }}
                   >
                     {head === "Status" ? (
                       <Select
                         value={statusFilter}
-                        onChange={(e) => {
-                          setStatusFilter(e.target.value);
-                          setPage(0);
-                        }}
+                        onChange={(e) => setStatusFilter(e.target.value)}
                         size="small"
                         variant="standard"
                         disableUnderline
@@ -269,22 +222,20 @@ export default function TicketDetailsTable({
               </TableRow>
             </TableHead>
             <TableBody>
-              {loadingDetails ? (
+              {loadingTickets ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
-                    <CircularProgress size={28} sx={{ color: "#2962ff" }} />
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={28} sx={{ color: "#0284c7" }} />
                   </TableCell>
                 </TableRow>
               ) : filteredTickets.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     align="center"
                     sx={{ py: 5, color: "text.secondary", fontWeight: 500 }}
                   >
-                    {statusFilter !== "All"
-                      ? `No ${statusFilter} tickets found for this agent.`
-                      : "No tickets found for this agent."}
+                    No tickets found matching the criteria.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -293,7 +244,7 @@ export default function TicketDetailsTable({
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((ticket, idx) => (
                     <TableRow
-                      key={idx}
+                      key={ticket.ticket_id || ticket.id || idx}
                       onClick={() => handleTicketClick(ticket)}
                       sx={{
                         cursor: "pointer",
@@ -304,54 +255,60 @@ export default function TicketDetailsTable({
                         },
                         "& td": {
                           borderBottom: `1px solid ${isDark ? "#1e293b" : "#f1f5f9"}`,
-                          padding: "6px 10px",
+                          padding: "8px 12px",
                         },
-                        "&:last-child td": { borderBottom: "none" },
+                        "& :last-child td": { borderBottom: "none" },
                       }}
                     >
+                      {/* Ticket ID */}
                       <TableCell
                         sx={{ fontWeight: 700, color: "text.primary" }}
                       >
                         {ticket.ticket_id || ticket.id}
                       </TableCell>
 
+                      {/* Assigned Agent Column */}
+                      <TableCell sx={{ fontWeight: 600, color: "#0284c7" }}>
+                        {ticket.agent_name || "Unassigned"}
+                      </TableCell>
+
+                      {/* Issue */}
                       <TableCell
                         sx={{
-                          maxWidth: 250,
+                          maxWidth: 220,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           color: "text.secondary",
                         }}
                       >
-                        <Tooltip
-                          title={ticket.issue || ""}
-                          placement="top-start"
+                        <span
+                          style={{
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
                         >
-                          <span
-                            style={{
-                              display: "block",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {ticket.issue}
-                          </span>
-                        </Tooltip>
+                          {ticket.issue}
+                        </span>
                       </TableCell>
 
+                      {/* Project */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {ticket.project || "-"}
                       </TableCell>
 
+                      {/* Type */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {ticket.type || "-"}
                       </TableCell>
 
+                      {/* Created Date */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate(ticket.added_date)}
                       </TableCell>
 
+                      {/* Status Chip */}
                       <TableCell>
                         <Chip
                           label={ticket.status}
@@ -367,10 +324,12 @@ export default function TicketDetailsTable({
                         />
                       </TableCell>
 
+                      {/* Updated Date */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate(ticket.updated_date)}
                       </TableCell>
 
+                      {/* SLA Hours */}
                       <TableCell
                         sx={{
                           fontWeight: 600,
@@ -392,9 +351,10 @@ export default function TicketDetailsTable({
           </Table>
         </TableContainer>
 
-        {!loadingDetails && agentTickets && agentTickets.length > 0 && (
+        {/* Pagination */}
+        {!loadingTickets && allTickets && allTickets.length > 0 && (
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
+            rowsPerPageOptions={[5, 10, 25, 50]}
             component="div"
             count={filteredTickets.length}
             rowsPerPage={rowsPerPage}
@@ -412,271 +372,15 @@ export default function TicketDetailsTable({
         )}
       </MotionPaper>
 
-      {/* 🔥 PREMIUM ANIMATED CHAT MODAL */}
-      <Dialog
+      {/* Reusable Chat Modal */}
+      <TicketChatModal
         open={chatDialogOpen}
-        onClose={closeChatDialog}
-        maxWidth="md"
-        fullWidth
-        closeAfterTransition
-        slots={{ backdrop: Backdrop }}
-        slotProps={{
-          backdrop: {
-            sx: {
-              backdropFilter: "blur(6px)",
-              backgroundColor: isDark
-                ? "rgba(0,0,0,0.6)"
-                : "rgba(255,255,255,0.3)",
-            },
-          },
-        }}
-        PaperComponent={(props) => (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 40 }}
-            transition={{ type: "spring", stiffness: 250, damping: 24 }}
-            style={{
-              width: "100%",
-              margin: "32px",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <Paper {...props} />
-          </motion.div>
-        )}
-        PaperProps={{
-          sx: {
-            m: 0,
-            width: "100%",
-            borderRadius: "24px",
-            bgcolor: isDark ? "#0f172a" : "#ffffff",
-            backgroundImage: "none",
-            border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
-            boxShadow: isDark
-              ? "0 25px 50px -12px rgba(41, 98, 255, 0.25)"
-              : "0 25px 60px -12px rgba(41, 98, 255, 0.15)",
-            maxHeight: "85vh",
-            overflow: "hidden", // Paper overflow hidden taaki internal scroll chal sake
-          },
-        }}
-      >
-        {/* 🔥 Fixed Title Section */}
-        <DialogTitle
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            p: 3,
-            pb: 2.5,
-            background: isDark
-              ? "linear-gradient(to right, #0f172a, #1e293b)"
-              : "linear-gradient(to right, #ffffff, #f8fafc)",
-            borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
-          }}
-        >
-          <Box>
-            <Typography
-              variant="h6"
-              fontWeight="800"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                color: isDark ? "#fff" : "#0f172a",
-              }}
-            >
-              <Avatar
-                sx={{
-                  width: 36,
-                  height: 36,
-                  bgcolor: alpha("#2962ff", 0.1),
-                  color: "#2962ff",
-                }}
-              >
-                <ChatIcon fontSize="small" />
-              </Avatar>
-              Ticket #
-              {activeTicketForChat?.ticket_id || activeTicketForChat?.id}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "text.secondary", mt: 0.5, ml: 6 }}
-            >
-              {activeTicketForChat?.issue || "Chat History"}
-            </Typography>
-          </Box>
-          <motion.div whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
-            <IconButton
-              onClick={closeChatDialog}
-              sx={{
-                bgcolor: isDark ? alpha("#fff", 0.05) : alpha("#000", 0.04),
-                "&:hover": { bgcolor: theme.palette.error.main, color: "#fff" },
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </motion.div>
-        </DialogTitle>
-
-        {/* 🔥 Scrollable Content Section */}
-        <DialogContent
-          sx={{
-            p: 0,
-            bgcolor: isDark ? "#0b1120" : "#f8fafc",
-            overflowY: "auto", // Yahan scroll hoga
-            maxHeight: "60vh",
-            "&::-webkit-scrollbar": { width: "6px" },
-            "&::-webkit-scrollbar-thumb": {
-              backgroundColor: isDark ? "#334155" : "#cbd5e1",
-              borderRadius: "10px",
-            },
-          }}
-        >
-          {loadingChat ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "200px",
-              }}
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              >
-                <CircularProgress size={28} sx={{ color: "#2962ff" }} />
-              </motion.div>
-            </Box>
-          ) : chatHistory.length === 0 ? (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "200px",
-              }}
-            >
-              <Typography color="text.secondary" fontWeight="500">
-                No conversation history found.
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ p: { xs: 2, sm: 4 }, position: "relative" }}>
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 32,
-                  bottom: 32,
-                  left: { xs: 34, sm: 50 },
-                  width: "2px",
-                  bgcolor: isDark ? "#1e293b" : "#e2e8f0",
-                  zIndex: 0,
-                }}
-              />
-              <motion.div
-                variants={chatContainerVariants}
-                initial="hidden"
-                animate="visible"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "28px",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                {chatHistory.map((chat, idx) => {
-                  const isReply = chat.thread_type === "reply";
-                  return (
-                    <motion.div
-                      key={chat.id || idx}
-                      variants={chatBubbleVariants}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={{ xs: 2, sm: 2.5 }}
-                        alignItems="flex-start"
-                      >
-                        <Avatar
-                          sx={{
-                            bgcolor: isDark ? "#1e293b" : "#fff",
-                            color: isReply
-                              ? "#2962ff"
-                              : theme.palette.success.main,
-                            border: `2px solid ${isReply ? "#2962ff" : theme.palette.success.main}`,
-                            width: 44,
-                            height: 44,
-                            fontWeight: 700,
-                            boxShadow: `0 4px 10px ${alpha(isReply ? "#2962ff" : theme.palette.success.main, 0.2)}`,
-                            zIndex: 2,
-                          }}
-                        >
-                          {chat.user_name ? (
-                            chat.user_name.charAt(0).toUpperCase()
-                          ) : (
-                            <PersonIcon />
-                          )}
-                        </Avatar>
-
-                        <Box sx={{ flex: 1, mt: -0.5 }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "baseline",
-                              flexWrap: "wrap",
-                              gap: 1.5,
-                              mb: 0.8,
-                            }}
-                          >
-                            <Typography
-                              variant="subtitle2"
-                              fontWeight="700"
-                              sx={{
-                                color: isDark ? "#f8fafc" : "#0f172a",
-                                fontSize: "0.95rem",
-                              }}
-                            >
-                              {chat.user_name || "Unknown User"}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              sx={{ color: "text.secondary", fontWeight: 500 }}
-                            >
-                              {formatDate(chat.created_at)}
-                            </Typography>
-                          </Box>
-
-                          <Paper
-                            elevation={0}
-                            sx={{
-                              p: 2.5,
-                              borderRadius: "0px 16px 16px 16px",
-                              bgcolor: isDark ? "#1e293b" : "#ffffff",
-                              border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
-                              color: isDark ? "#cbd5e1" : "#334155",
-                              fontSize: "0.9rem",
-                              lineHeight: 1.6,
-                            }}
-                          >
-                            <div
-                              dangerouslySetInnerHTML={{
-                                __html: decodeHTML(chat.message),
-                              }}
-                            />
-                          </Paper>
-                        </Box>
-                      </Stack>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            </Box>
-          )}
-        </DialogContent>
-      </Dialog>
+        onClose={() => setChatDialogOpen(false)}
+        ticket={activeTicketForChat}
+        isDark={isDark}
+        theme={theme}
+        formatDate={formatDate}
+      />
     </>
   );
 }

@@ -213,8 +213,8 @@ export default function AgentSummaryTable({
               }}
             >
               <MenuItem value="all">All SLAs</MenuItem>
-              <MenuItem value="lt_48">Within SLA </MenuItem>
-              <MenuItem value="gt_48">Out of SLA</MenuItem>
+              <MenuItem value="lt_48">Within SLA 48 hrs </MenuItem>
+              <MenuItem value="gt_48">Out of SLA 48 hrs</MenuItem>
             </Select>
           </FormControl>
         </Box>

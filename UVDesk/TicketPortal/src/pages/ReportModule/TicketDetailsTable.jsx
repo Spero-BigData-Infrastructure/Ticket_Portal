@@ -187,6 +187,7 @@ export default function TicketDetailsTable({
                         <MenuItem value="All">Status (All)</MenuItem>
                         <MenuItem value="Open">Open</MenuItem>
                         <MenuItem value="Pending">Pending</MenuItem>
+                        <MenuItem value="Answered">Answered</MenuItem>
                         <MenuItem value="Resolved">Resolved</MenuItem>
                         <MenuItem value="Closed">Closed</MenuItem>
                       </Select>
@@ -238,7 +239,9 @@ export default function TicketDetailsTable({
                         "&:last-child td": { borderBottom: "none" },
                       }}
                     >
-                      <TableCell sx={{ fontWeight: 700, color: "text.primary" }}>
+                      <TableCell
+                        sx={{ fontWeight: 700, color: "text.primary" }}
+                      >
                         {ticket.ticket_id || ticket.id}
                       </TableCell>
 
@@ -251,7 +254,10 @@ export default function TicketDetailsTable({
                           color: "text.secondary",
                         }}
                       >
-                        <Tooltip title={ticket.issue || ""} placement="top-start">
+                        <Tooltip
+                          title={ticket.issue || ""}
+                          placement="top-start"
+                        >
                           <span
                             style={{
                               display: "block",
@@ -304,7 +310,8 @@ export default function TicketDetailsTable({
                               : "inherit",
                         }}
                       >
-                        {ticket.sla_hours !== null && ticket.sla_hours !== undefined
+                        {ticket.sla_hours !== null &&
+                        ticket.sla_hours !== undefined
                           ? `${ticket.sla_hours} hrs`
                           : "-"}
                       </TableCell>

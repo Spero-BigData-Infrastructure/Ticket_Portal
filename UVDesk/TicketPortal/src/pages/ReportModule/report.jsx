@@ -38,7 +38,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import AgentSummaryTable from "./AgentSummaryTable";
 import TicketDetailsTable from "./TicketDetailsTable";
 import MasterTicketTable from "./MasterTicketTable"; // 🔥 MASTER TABLE IMPORT
-import { API_URL } from "../../config/api";
+import { API_URL } from "../../Config/Api";
 
 const MotionPaper = motion(Paper);
 const MotionBox = motion(Box);

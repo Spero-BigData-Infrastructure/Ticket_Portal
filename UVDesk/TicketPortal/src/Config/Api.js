@@ -17,7 +17,7 @@ const getApiBaseUrl = () => {
   }
 
   // 🔹 Staging / public IP
-  if (hostname === "122.176.232.35:" && port === "8558") {
+  if (hostname === "122.176.232.35:") {
     return "http://122.176.232.35:8558";
   }
  

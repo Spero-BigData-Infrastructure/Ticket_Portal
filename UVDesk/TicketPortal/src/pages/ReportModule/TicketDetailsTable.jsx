@@ -9,6 +9,8 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
+  IconButton,
+  Tooltip,
   Chip,
   Stack,
   alpha,
@@ -17,7 +19,10 @@ import {
   MenuItem,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { ReceiptLongOutlined as ReceiptIcon } from "@mui/icons-material";
+import {
+  ReceiptLongOutlined as ReceiptIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 
 // 🔥 Import Reusable Chat Modal Component
 import TicketChatModal from "./TicketChatModal";
@@ -32,33 +37,31 @@ const detailCardVariants = {
     transition: { type: "spring", stiffness: 100, damping: 15 },
   },
   exit: { opacity: 0, y: 15, transition: { duration: 0.2 } },
-};
+}
 
-export default function MasterTicketTable({
+export default function TicketDetailsTable({
   isDark,
   theme,
-  loadingTickets, // loading state for all tickets
-  allTickets, // Array of all tickets across the system
+  selectedAgentId,
+  selectedAgentName,
+  loadingDetails,
+  agentTickets,
+  setSelectedAgentId,
   getStatusColor,
   formatDate,
 }) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10); // Master table ke liye default 10 sahi rahega
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [statusFilter, setStatusFilter] = useState("All");
-  const [agentFilter, setAgentFilter] = useState("All");
 
   // Chat Modal Trigger States
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [activeTicketForChat, setActiveTicketForChat] = useState(null);
 
-  // Extract unique agents for the dropdown filter
-  const uniqueAgents = Array.from(
-    new Set((allTickets || []).map((t) => t.agent_name).filter(Boolean)),
-  );
-
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, agentFilter]);
+    setStatusFilter("All");
+  }, [selectedAgentId]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -69,22 +72,17 @@ export default function MasterTicketTable({
     setPage(0);
   };
 
-  // Multiple Filters logic: Status and Agent
-  const filteredTickets = (allTickets || []).filter((ticket) => {
-    const matchesStatus =
-      statusFilter === "All" ||
-      ticket.status?.toLowerCase() === statusFilter.toLowerCase();
-
-    const matchesAgent =
-      agentFilter === "All" || ticket.agent_name === agentFilter;
-
-    return matchesStatus && matchesAgent;
+  const filteredTickets = (agentTickets || []).filter((ticket) => {
+    if (statusFilter === "All") return true;
+    return ticket.status?.toLowerCase() === statusFilter.toLowerCase();
   });
 
   const handleTicketClick = (ticket) => {
     setActiveTicketForChat(ticket);
     setChatDialogOpen(true);
   };
+
+  if (!selectedAgentId) return null;
 
   return (
     <>
@@ -99,23 +97,21 @@ export default function MasterTicketTable({
           borderRadius: "16px",
           bgcolor: isDark ? "#111827" : "#fff",
           border: 2,
-          borderColor: "#0284c7", // Diff color for differentiation (Sky blue tone)
+          borderColor: "#2962ff",
           mb: 4,
           boxShadow: isDark
-            ? "0px 8px 30px rgba(2, 132, 199, 0.1)"
-            : "0px 12px 40px rgba(2, 132, 199, 0.15)",
+            ? "0px 8px 30px rgba(41, 98, 255, 0.1)"
+            : "0px 12px 40px rgba(41, 98, 255, 0.15)",
         }}
       >
-        {/* Header Stack */}
         <Stack
-          direction={{ xs: "column", sm: "row" }}
+          direction="row"
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          gap={2}
+          alignItems="center"
           mb={3}
         >
           <Typography
-            variant="h6"
+            variant="subtitle1"
             fontWeight="700"
             sx={{
               display: "flex",
@@ -124,43 +120,21 @@ export default function MasterTicketTable({
               color: isDark ? "#fff" : "#1e293b",
             }}
           >
-            <ReceiptIcon sx={{ color: "#0284c7" }} />
-            Master Tickets Dashboard
+            <ReceiptIcon sx={{ color: "#2962ff" }} />
+            Tickets assigned to:{" "}
+            <span style={{ color: "#2962ff", marginLeft: "4px" }}>
+              {selectedAgentName}
+            </span>
           </Typography>
-
-          {/* Agent Filter Dropdown (Header control) */}
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Typography
-              variant="body2"
-              sx={{ color: isDark ? "#94a3b8" : "#64748b", fontWeight: 500 }}
-            >
-              Filter Agent:
-            </Typography>
-            <Select
-              value={agentFilter}
-              onChange={(e) => setAgentFilter(e.target.value)}
-              size="small"
-              sx={{
-                minWidth: 150,
-                color: isDark ? "#fff" : "#1e293b",
-                bgcolor: isDark ? "#1e293b" : "#f8fafc",
-                borderRadius: "8px",
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: isDark ? "#334155" : "#e2e8f0",
-                },
-              }}
-            >
-              <MenuItem value="All">All Agents</MenuItem>
-              {uniqueAgents.map((agent) => (
-                <MenuItem key={agent} value={agent}>
-                  {agent}
-                </MenuItem>
-              ))}
-            </Select>
-          </Stack>
+          <IconButton
+            size="small"
+            onClick={() => setSelectedAgentId(null)}
+            sx={{ bgcolor: isDark ? alpha("#fff", 0.05) : alpha("#000", 0.04) }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </Stack>
 
-        {/* Table Container */}
         <TableContainer
           sx={{
             border: 1,
@@ -174,7 +148,6 @@ export default function MasterTicketTable({
               <TableRow>
                 {[
                   "Ticket ID",
-                  "Assigned To", // Added Agent Name Column
                   "Issue",
                   "Project",
                   "Type",
@@ -191,13 +164,16 @@ export default function MasterTicketTable({
                       fontWeight: 600,
                       borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                       whiteSpace: "nowrap",
-                      padding: "10px 12px",
+                      padding: "8px 10px",
                     }}
                   >
                     {head === "Status" ? (
                       <Select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setPage(0);
+                        }}
                         size="small"
                         variant="standard"
                         disableUnderline
@@ -222,20 +198,22 @@ export default function MasterTicketTable({
               </TableRow>
             </TableHead>
             <TableBody>
-              {loadingTickets ? (
+              {loadingDetails ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
-                    <CircularProgress size={28} sx={{ color: "#0284c7" }} />
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={28} sx={{ color: "#2962ff" }} />
                   </TableCell>
                 </TableRow>
               ) : filteredTickets.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     align="center"
                     sx={{ py: 5, color: "text.secondary", fontWeight: 500 }}
                   >
-                    No tickets found matching the criteria.
+                    {statusFilter !== "All"
+                      ? `No ${statusFilter} tickets found for this agent.`
+                      : "No tickets found for this agent."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -244,7 +222,7 @@ export default function MasterTicketTable({
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((ticket, idx) => (
                     <TableRow
-                      key={ticket.ticket_id || ticket.id || idx}
+                      key={idx}
                       onClick={() => handleTicketClick(ticket)}
                       sx={{
                         cursor: "pointer",
@@ -255,60 +233,49 @@ export default function MasterTicketTable({
                         },
                         "& td": {
                           borderBottom: `1px solid ${isDark ? "#1e293b" : "#f1f5f9"}`,
-                          padding: "8px 12px",
+                          padding: "6px 10px",
                         },
-                        "& :last-child td": { borderBottom: "none" },
+                        "&:last-child td": { borderBottom: "none" },
                       }}
                     >
-                      {/* Ticket ID */}
-                      <TableCell
-                        sx={{ fontWeight: 700, color: "text.primary" }}
-                      >
+                      <TableCell sx={{ fontWeight: 700, color: "text.primary" }}>
                         {ticket.ticket_id || ticket.id}
                       </TableCell>
 
-                      {/* Assigned Agent Column */}
-                      <TableCell sx={{ fontWeight: 600, color: "#0284c7" }}>
-                        {ticket.agent_name || "Unassigned"}
-                      </TableCell>
-
-                      {/* Issue */}
                       <TableCell
                         sx={{
-                          maxWidth: 220,
+                          maxWidth: 250,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           color: "text.secondary",
                         }}
                       >
-                        <span
-                          style={{
-                            display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {ticket.issue}
-                        </span>
+                        <Tooltip title={ticket.issue || ""} placement="top-start">
+                          <span
+                            style={{
+                              display: "block",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {ticket.issue}
+                          </span>
+                        </Tooltip>
                       </TableCell>
 
-                      {/* Project */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {ticket.project || "-"}
                       </TableCell>
 
-                      {/* Type */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {ticket.type || "-"}
                       </TableCell>
 
-                      {/* Created Date */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate(ticket.added_date)}
                       </TableCell>
 
-                      {/* Status Chip */}
                       <TableCell>
                         <Chip
                           label={ticket.status}
@@ -324,12 +291,10 @@ export default function MasterTicketTable({
                         />
                       </TableCell>
 
-                      {/* Updated Date */}
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate(ticket.updated_date)}
                       </TableCell>
 
-                      {/* SLA Hours */}
                       <TableCell
                         sx={{
                           fontWeight: 600,
@@ -339,8 +304,7 @@ export default function MasterTicketTable({
                               : "inherit",
                         }}
                       >
-                        {ticket.sla_hours !== null &&
-                        ticket.sla_hours !== undefined
+                        {ticket.sla_hours !== null && ticket.sla_hours !== undefined
                           ? `${ticket.sla_hours} hrs`
                           : "-"}
                       </TableCell>
@@ -351,10 +315,9 @@ export default function MasterTicketTable({
           </Table>
         </TableContainer>
 
-        {/* Pagination */}
-        {!loadingTickets && allTickets && allTickets.length > 0 && (
+        {!loadingDetails && agentTickets && agentTickets.length > 0 && (
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
+            rowsPerPageOptions={[5, 10, 25]}
             component="div"
             count={filteredTickets.length}
             rowsPerPage={rowsPerPage}
@@ -372,7 +335,7 @@ export default function MasterTicketTable({
         )}
       </MotionPaper>
 
-      {/* Reusable Chat Modal */}
+      {/* 🔥 REUSABLE CHAT MODAL TRIGGERED HERE */}
       <TicketChatModal
         open={chatDialogOpen}
         onClose={() => setChatDialogOpen(false)}

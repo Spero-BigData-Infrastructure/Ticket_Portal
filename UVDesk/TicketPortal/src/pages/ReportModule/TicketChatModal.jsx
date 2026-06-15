@@ -189,7 +189,7 @@ export default function TicketChatModal({
                 lineHeight: 1.2,
               }}
             >
-              Ticket #{ticket?.ticket_id || ticket?.id || "N/A"}
+              Ticket {ticket?.ticket_id || ticket?.id || "N/A"}
             </Typography>
             <Typography
               variant="body2"

@@ -17,6 +17,8 @@ import {
   Box,
   TextField,
   InputAdornment,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { motion } from "framer-motion";
 import {
@@ -25,7 +27,6 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 
-// 🔥 Import Reusable Chat Modal Component
 import TicketChatModal from "./TicketChatModal";
 
 const MotionPaper = motion(Paper);
@@ -49,18 +50,23 @@ export default function MasterTicketTable({
   formatDate,
   onClose,
   activeStatus,
+  onSlaFilterChange,
 }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // 🔥 Chat Modal States
+  const [slaFilter, setSlaFilter] = useState("All");
+
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
   const [activeTicketForChat, setActiveTicketForChat] = useState(null);
 
   useEffect(() => {
     setPage(0);
     setSearchTerm("");
+    setStatusFilter("All");
+    setSlaFilter("All");
   }, [activeStatus]);
 
   const handleChangePage = (event, newPage) => {
@@ -72,18 +78,37 @@ export default function MasterTicketTable({
     setPage(0);
   };
 
-  // 🔥 Filter logic
+  const handleSlaChange = (e) => {
+    const selectedValue = e.target.value;
+    setSlaFilter(selectedValue);
+    setPage(0);
+
+    if (onSlaFilterChange) {
+      onSlaFilterChange(selectedValue === "All" ? "" : selectedValue);
+    }
+  };
+
   const filteredTickets = (ticketDetails || []).filter((ticket) => {
-    if (!searchTerm) return true;
-    const lowerSearch = searchTerm.toLowerCase();
-    return (
-      ticket.ticket_id?.toString().toLowerCase().includes(lowerSearch) ||
-      ticket.subject?.toLowerCase().includes(lowerSearch) ||
-      ticket.agent_name?.toLowerCase().includes(lowerSearch)
-    );
+    let matchesSearch = true;
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      matchesSearch =
+        ticket.ticket_id?.toString().toLowerCase().includes(lowerSearch) ||
+        ticket.subject?.toLowerCase().includes(lowerSearch) ||
+        ticket.agent_name?.toLowerCase().includes(lowerSearch) ||
+        ticket.project?.toLowerCase().includes(lowerSearch) ||
+        ticket.type?.toLowerCase().includes(lowerSearch);
+    }
+
+    let matchesStatus = true;
+    if (statusFilter !== "All") {
+      matchesStatus =
+        ticket.status?.toLowerCase() === statusFilter.toLowerCase();
+    }
+
+    return matchesSearch && matchesStatus;
   });
 
-  // 🔥 Handle Row Click to Open Chat
   const handleRowClick = (ticket) => {
     const structuredTicket = {
       ...ticket,
@@ -91,6 +116,11 @@ export default function MasterTicketTable({
     };
     setActiveTicketForChat(structuredTicket);
     setChatDialogOpen(true);
+  };
+
+  const getSlaHoursNumeric = (slaString) => {
+    if (!slaString) return 0;
+    return parseFloat(slaString);
   };
 
   return (
@@ -113,7 +143,6 @@ export default function MasterTicketTable({
             : "0px 12px 40px rgba(41, 98, 255, 0.15)",
         }}
       >
-        {/* 🔥 HEADER BOX */}
         <Box
           sx={{
             display: "flex",
@@ -142,7 +171,6 @@ export default function MasterTicketTable({
             </span>
           </Typography>
 
-          {/* Search Box aur Close Button */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <TextField
               size="small"
@@ -188,7 +216,6 @@ export default function MasterTicketTable({
           </Box>
         </Box>
 
-        {/* 🔥 TABLE SECTION WITH MATCHED DESIGN */}
         <TableContainer
           sx={{
             border: 1,
@@ -203,10 +230,13 @@ export default function MasterTicketTable({
                 {[
                   "Ticket ID",
                   "Subject",
-                  "Agent Name",
+                  "Project",
+                  "Type",
+                  // "Agent",
+                  "Created",
                   "Status",
-                  "Created At",
-                  "Updated At",
+                  "Updated",
+                  "SLA Hrs",
                 ].map((head) => (
                   <TableCell
                     key={head}
@@ -216,10 +246,54 @@ export default function MasterTicketTable({
                       fontWeight: 600,
                       borderBottom: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
                       whiteSpace: "nowrap",
-                      padding: "8px 10px", // Exact padding match
+                      padding: "8px 10px",
                     }}
                   >
-                    {head}
+                    {head === "Status" ? (
+                      <Select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setPage(0);
+                        }}
+                        size="small"
+                        variant="standard"
+                        disableUnderline
+                        sx={{
+                          color: "inherit",
+                          fontWeight: 600,
+                          fontSize: "0.875rem",
+                          "& .MuiSelect-icon": { color: "inherit" },
+                        }}
+                      >
+                        <MenuItem value="All">Status (All)</MenuItem>
+                        <MenuItem value="Open">Open</MenuItem>
+                        <MenuItem value="Pending">Pending</MenuItem>
+                        <MenuItem value="Answered">Answered</MenuItem>
+                        <MenuItem value="Resolved">Resolved</MenuItem>
+                        <MenuItem value="Closed">Closed</MenuItem>
+                      </Select>
+                    ) : head === "SLA Hrs" ? (
+                      <Select
+                        value={slaFilter}
+                        onChange={handleSlaChange}
+                        size="small"
+                        variant="standard"
+                        disableUnderline
+                        sx={{
+                          color: "inherit",
+                          fontWeight: 600,
+                          fontSize: "0.875rem",
+                          "& .MuiSelect-icon": { color: "inherit" },
+                        }}
+                      >
+                        <MenuItem value="All">SLA (All)</MenuItem>
+                        <MenuItem value="lt_48">&lt; 48 Hrs</MenuItem>
+                        <MenuItem value="gt_48">&gt; 48 Hrs</MenuItem>
+                      </Select>
+                    ) : (
+                      head
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
@@ -227,19 +301,19 @@ export default function MasterTicketTable({
             <TableBody>
               {loadingTickets ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <CircularProgress size={28} sx={{ color: "#2962ff" }} />
                   </TableCell>
                 </TableRow>
               ) : filteredTickets.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={9}
                     align="center"
                     sx={{ py: 5, color: "text.secondary", fontWeight: 500 }}
                   >
-                    {searchTerm
-                      ? "No tickets match your search."
+                    {searchTerm || statusFilter !== "All" || slaFilter !== "All"
+                      ? "No tickets match your filters."
                       : `No tickets found for ${activeStatus === "total" ? "any" : activeStatus} status.`}
                   </TableCell>
                 </TableRow>
@@ -259,22 +333,20 @@ export default function MasterTicketTable({
                         },
                         "& td": {
                           borderBottom: `1px solid ${isDark ? "#1e293b" : "#f1f5f9"}`,
-                          padding: "6px 10px", // Exact cell padding match
+                          padding: "6px 10px",
                         },
                         "&:last-child td": { borderBottom: "none" },
                       }}
                     >
-                      {/* Ticket ID Cell */}
                       <TableCell
                         sx={{ fontWeight: 700, color: "text.primary" }}
                       >
                         {ticket.ticket_id || ticket.id}
                       </TableCell>
 
-                      {/* Subject Row (With exact Ellipsis and Width configurations) */}
                       <TableCell
                         sx={{
-                          maxWidth: 250,
+                          maxWidth: 200,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -297,12 +369,21 @@ export default function MasterTicketTable({
                         </Tooltip>
                       </TableCell>
 
-                      {/* Agent Name Cell */}
                       <TableCell sx={{ color: "text.primary" }}>
+                        {ticket.project || "-"}
+                      </TableCell>
+                      <TableCell sx={{ color: "text.primary" }}>
+                        {ticket.type || "-"}
+                      </TableCell>
+                      {/* <TableCell sx={{ color: "text.primary" }}>
                         {ticket.agent_name || "-"}
+                      </TableCell> */}
+                      <TableCell sx={{ color: "text.primary" }}>
+                        {formatDate
+                          ? formatDate(ticket.created_at)
+                          : ticket.created_at}
                       </TableCell>
 
-                      {/* Status Custom Chip */}
                       <TableCell>
                         <Chip
                           label={ticket.status}
@@ -318,17 +399,22 @@ export default function MasterTicketTable({
                         />
                       </TableCell>
 
-                      {/* Dates Mapping */}
-                      <TableCell sx={{ color: "text.primary" }}>
-                        {formatDate
-                          ? formatDate(ticket.created_at)
-                          : ticket.created_at}
-                      </TableCell>
-
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate
                           ? formatDate(ticket.updated_at)
                           : ticket.updated_at}
+                      </TableCell>
+
+                      <TableCell
+                        sx={{
+                          fontWeight: 600,
+                          color:
+                            getSlaHoursNumeric(ticket.sla_hours) > 48
+                              ? theme?.palette?.error?.main || "#ef4444"
+                              : "inherit",
+                        }}
+                      >
+                        {ticket.sla_hours || "-"}
                       </TableCell>
                     </TableRow>
                   ))
@@ -337,7 +423,6 @@ export default function MasterTicketTable({
           </Table>
         </TableContainer>
 
-        {/* 🔥 Pagination Controls Match */}
         {!loadingTickets && filteredTickets.length > 0 && (
           <TablePagination
             rowsPerPageOptions={[5, 10, 25, 50]}
@@ -358,7 +443,6 @@ export default function MasterTicketTable({
         )}
       </MotionPaper>
 
-      {/* 🔥 REUSABLE CHAT MODAL INTEGRATION */}
       <TicketChatModal
         open={chatDialogOpen}
         onClose={() => setChatDialogOpen(false)}

@@ -307,6 +307,7 @@ const fetchTicketsByStatus = async (
   statusType,
   start = fromDate,
   end = toDate,
+  slaFilterValue = "", 
 ) => {
   setLoadingTickets(true);
   setActiveStatus(statusType);
@@ -318,7 +319,12 @@ const fetchTicketsByStatus = async (
       status: statusType === "total" ? null : statusType,
     };
 
-    // 🔥 Yahan raw fetch ki jagah service use kiya hai
+   
+    if (slaFilterValue) {
+      payload.sla_filter = slaFilterValue;
+    }
+
+
     const data = await reportService.getMasterTicketDetails(payload);
 
     if (data && data.status && data.data) {
@@ -886,6 +892,14 @@ const fetchTicketsByStatus = async (
                 formatDate={formatDate}
                 activeStatus={activeStatus}
                 onClose={() => setActiveStatus(null)}
+                onSlaFilterChange={(newSlaValue) => {
+                  fetchTicketsByStatus(
+                    activeStatus,
+                    fromDate,
+                    toDate,
+                    newSlaValue,
+                  );
+                }}
               />
             </Box>
           )}

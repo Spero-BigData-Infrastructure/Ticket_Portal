@@ -1,53 +1,23 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from database import database
-import time
+import os
 import json
 import asyncio
-import hashlib
-from io import BytesIO
-from datetime import datetime
 import base64
-import hashlib
-import time  
-from datetime import datetime, timedelta, time as dt_time
-import time as time_module
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from openpyxl import Workbook
-from openpyxl.styles import Font
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Body
-from datetime import datetime
-from openpyxl import Workbook
-from openpyxl.styles import Font
-import os
-from fastapi import Query
-from fastapi.responses import FileResponse
-from openpyxl.styles import Font
 import tempfile
-from pydantic import BaseModel
-from typing import Optional
+import hashlib
+from io import BytesIO
+from datetime import datetime, timedelta, time as dt_time
 from collections import defaultdict
-from datetime import datetime
-from fastapi.responses import FileResponse
-import os
-from fastapi.responses import StreamingResponse
-from io import BytesIO
-from io import BytesIO
+from typing import Optional
+import time as time_module
+from pydantic import BaseModel
+from argon2 import PasswordHasher
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from fastapi import FastAPI, Request, Response
-from argon2 import PasswordHasher
-from datetime import datetime, timedelta
-from typing import Optional
-from pydantic import BaseModel
-from fastapi import Body
-from datetime import datetime
-import time  
-from datetime import datetime, timedelta, time as dt_time
-import time as time_module
-from datetime import datetime, timedelta
-from collections import defaultdict
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, Body, Query
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from zoneinfo import ZoneInfo
+from database import database
 
 app = FastAPI()
 
@@ -1845,74 +1815,505 @@ async def project_agent_summary_api(project_id: int):
 
 
 
-class AgentReportRequest(BaseModel):
-    from_date: str | None = None
-    to_date: str | None = None
-    sla_type: str | None = None
-    agent_id: int | None = None
+# class AgentReportRequest(BaseModel):
+#     from_date: str | None = None
+#     to_date: str | None = None
+#     sla_type: str | None = None
+#     agent_id: int | None = None
+
+
+# def calculate_working_hours(start: datetime, end: datetime) -> float:
+#     """
+#     Calculates working hours between two datetimes.
+#     Monday-Friday only, max 8 hrs/day cap.
+#     No office hours restriction.
+#     """
+#     if not start or not end or end <= start:
+#         return 0.0
+
+#     DAILY_CAP    = 8.0
+#     total_hours  = 0.0
+#     current_date = start.date()
+#     end_date     = end.date()
+
+#     while current_date <= end_date:
+
+#         # Skip Saturday (5) and Sunday (6)
+#         if current_date.weekday() >= 5:
+#             current_date += timedelta(days=1)
+#             continue
+
+#         if current_date == start.date() == end_date:
+#             hours = (
+#                 end - start
+#             ).total_seconds() / 3600
+
+#         elif current_date == start.date():
+#             end_of_day = datetime.combine(
+#                 current_date + timedelta(days=1),
+#                 datetime.min.time()
+#             )
+#             hours = (
+#                 end_of_day - start
+#             ).total_seconds() / 3600
+
+#         elif current_date == end_date:
+#             start_of_day = datetime.combine(
+#                 current_date,
+#                 datetime.min.time()
+#             )
+#             hours = (
+#                 end - start_of_day
+#             ).total_seconds() / 3600
+
+#         else:
+#             hours = 24.0
+
+#         total_hours += min(hours, DAILY_CAP)
+
+#         current_date += timedelta(days=1)
+
+#     return round(total_hours, 2)
+
+
+# @app.post("/api/uvdesk-agent")
+# async def uvdesk_agent_summary(
+#     payload: AgentReportRequest = Body(
+#         default_factory=AgentReportRequest
+#     )
+# ):
+
+#     from_date    = payload.from_date
+#     to_date      = payload.to_date
+#     sla_type     = payload.sla_type
+#     agent_filter = payload.agent_id
+
+#     query = """
+#     SELECT
+#         t.id AS ticket_id,
+#         t.subject AS issue,
+
+#         t.agent_id,
+
+#         CONCAT(
+#             a.first_name,
+#             ' ',
+#             a.last_name
+#         ) AS agent_name,
+
+#         CONCAT(
+#             c.first_name,
+#             ' ',
+#             c.last_name
+#         ) AS added_by,
+
+#         t.created_at,
+#         t.updated_at,
+
+#         t.status_id,
+
+#         sg.name AS project_name,
+
+#         ty.code AS ticket_type
+
+#     FROM uv_ticket t
+
+#     INNER JOIN uv_user a
+#     ON t.agent_id = a.id
+#     AND a.is_enabled != 2
+
+#     LEFT JOIN uv_user c
+#     ON t.customer_id = c.id
+
+#     LEFT JOIN uv_ticket_type ty
+#     ON t.type_id = ty.id
+
+#     LEFT JOIN uv_support_group sg
+#     ON t.group_id = sg.id
+
+#     WHERE t.is_trashed != 1
+#     """
+
+#     rows = await database.fetch_all(
+#         query=query
+#     )
+
+#     agents = defaultdict(
+#         lambda: {
+#             "agent_id": None,
+#             "agent_name": "",
+#             "updated_at": None,
+#             "summary": {
+#                 "open": 0,
+#                 "pending": 0,
+#                 "answered": 0,
+#                 "resolved": 0,
+#                 "closed": 0,
+#                 "total": 0
+#             },
+#             "tickets": []
+#         }
+#     )
+
+#     for r in rows:
+
+#         r = dict(r)
+
+#         # =====================================
+#         # SLA HOURS — Mon-Fri, max 8 hrs/day
+#         # =====================================
+
+#         created_at = r["created_at"]
+#         updated_at = r["updated_at"]
+
+#         if r["status_id"] == 5:
+#             sla_end = updated_at if updated_at else datetime.now()
+#         else:
+#             sla_end = datetime.now()
+
+#         sla_hours = calculate_working_hours(
+#             created_at,
+#             sla_end
+#         ) if created_at else 0.0
+
+#         # =====================================
+#         # SLA FILTER
+#         # =====================================
+
+#         if (
+#             sla_type == "gt_48"
+#             and sla_hours <= 48
+#         ):
+#             continue
+
+#         if (
+#             sla_type == "lt_48"
+#             and sla_hours >= 48
+#         ):
+#             continue
+
+#         # =====================================
+#         # DATE FILTER
+#         # =====================================
+
+#         if from_date and to_date:
+
+#             fd = datetime.strptime(
+#                 from_date,
+#                 "%Y-%m-%d"
+#             ).date()
+
+#             td = datetime.strptime(
+#                 to_date,
+#                 "%Y-%m-%d"
+#             ).date()
+
+#             if r["status_id"] in (4, 5):
+#                 date_to_check = (
+#                     r["updated_at"].date()
+#                     if r["updated_at"]
+#                     else r["created_at"].date()
+#                 )
+#             else:
+#                 date_to_check = (
+#                     r["created_at"].date()
+#                 )
+
+#             if not (
+#                 fd <= date_to_check <= td
+#             ):
+#                 continue
+
+#         # =====================================
+#         # AGENT ID FILTER
+#         # =====================================
+
+#         if agent_filter is not None:
+
+#             if (
+#                 r["agent_id"]
+#                 != agent_filter
+#             ):
+#                 continue
+
+#         aid = r["agent_id"]
+
+#         if (
+#             agents[aid]["agent_id"]
+#             is None
+#         ):
+
+#             agents[aid]["agent_id"] = aid
+
+#             agents[aid]["agent_name"] = (
+#                 r["agent_name"] or ""
+#             )
+
+#             agents[aid]["updated_at"] = (
+#                 r["updated_at"]
+#             )
+
+#         else:
+
+#             if (
+#                 r["updated_at"]
+#                 and (
+#                     agents[aid]["updated_at"] is None
+#                     or r["updated_at"]
+#                     > agents[aid]["updated_at"]
+#                 )
+#             ):
+
+#                 agents[aid]["updated_at"] = (
+#                     r["updated_at"]
+#                 )
+
+#         status_id = r["status_id"]
+
+#         if status_id == 1:
+
+#             status = "Open"
+
+#             agents[aid]["summary"][
+#                 "open"
+#             ] += 1
+
+#         elif status_id == 2:
+
+#             status = "Pending"
+
+#             agents[aid]["summary"][
+#                 "pending"
+#             ] += 1
+
+#         elif status_id == 3:
+
+#             status = "Answered"
+
+#             agents[aid]["summary"][
+#                 "answered"
+#             ] += 1
+
+#         elif status_id == 4:
+
+#             status = "Resolved"
+
+#             agents[aid]["summary"][
+#                 "resolved"
+#             ] += 1
+
+#         elif status_id == 5:
+
+#             status = "Closed"
+
+#             agents[aid]["summary"][
+#                 "closed"
+#             ] += 1
+
+#         else:
+
+#             status = "Unknown"
+
+#         agents[aid]["summary"][
+#             "total"
+#         ] += 1
+
+#         agents[aid]["tickets"].append({
+
+#             "ticket_id":
+#                 f"#{r['ticket_id']}",
+
+#             "issue":
+#                 r["issue"],
+
+#             "added_by":
+#                 r["added_by"],
+
+#             "added_date":
+#                 (
+#                     r["created_at"].isoformat()
+#                     if r["created_at"]
+#                     else None
+#                 ),
+
+#             "project":
+#                 r["project_name"],
+
+#             "type":
+#                 r["ticket_type"],
+
+#             "assigned_to":
+#                 r["agent_name"],
+
+#             "status":
+#                 status,
+
+#             "updated_date":
+#                 (
+#                     r["updated_at"].isoformat()
+#                     if r["updated_at"]
+#                     else None
+#                 ),
+
+#             "closed_date":
+#                 (
+#                     r["updated_at"].isoformat()
+#                     if status_id == 5
+#                     else None
+#                 ),
+#             "sla_hours":
+#                 (
+#                     f"{int(sla_hours * 60)} mins"
+#                     if sla_hours < 1
+#                     else f"{round(sla_hours, 2)}"
+#                 ),
+
+#             "sla_days":
+#                 round(sla_hours / 8, 2)
+
+#         })
+
+#     # =====================================
+#     # SORT BY updated_at ASCENDING
+#     # =====================================
+
+#     sorted_agents = sorted(
+#         agents.values(),
+#         key=lambda x: (
+#             x["updated_at"]
+#             if x["updated_at"]
+#             else datetime.min
+#         ),
+#         reverse=False
+#     )
+
+#     return {
+
+#         "status": True,
+
+#         "filters": {
+
+#             "from_date":
+#                 from_date,
+
+#             "to_date":
+#                 to_date,
+
+#             "sla_type":
+#                 sla_type,
+
+#             "agent_id":
+#                 agent_filter
+#         },
+
+#         "total_agents":
+#             len(sorted_agents),
+
+#         "data":
+#             sorted_agents
+#     }
+
+
+
+
+IST          = ZoneInfo("Asia/Kolkata")
+OFFICE_START = dt_time(9, 30)
+OFFICE_END   = dt_time(18, 0)
+
+
+# =============================================
+# HELPERS
+# =============================================
+
+def parse_dt(val):
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.replace(tzinfo=None)
+    if isinstance(val, date_type):
+        return datetime(val.year, val.month, val.day)
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(str(val), fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromtimestamp(float(val))
+    except (ValueError, TypeError, OSError):
+        pass
+    return None
+
+
+def get_effective_now() -> datetime:
+    now = datetime.now(IST).replace(tzinfo=None)
+    if now.weekday() >= 5:
+        days_back   = now.weekday() - 4
+        last_friday = now - timedelta(days=days_back)
+        return datetime.combine(last_friday.date(), OFFICE_END)
+    if now.time() < OFFICE_START:
+        return datetime.combine(now.date(), OFFICE_START)
+    if now.time() > OFFICE_END:
+        return datetime.combine(now.date(), OFFICE_END)
+    return now
+
+
+def get_sla_end(status_id: int, updated_at) -> datetime:
+    if status_id == 5:
+        return updated_at if updated_at else get_effective_now()
+    return get_effective_now()
 
 
 def calculate_working_hours(start: datetime, end: datetime) -> float:
-    """
-    Calculates working hours between two datetimes.
-    Monday-Friday only, max 8 hrs/day cap.
-    No office hours restriction.
-    """
     if not start or not end or end <= start:
         return 0.0
-
-    DAILY_CAP    = 8.0
-    total_hours  = 0.0
-    current_date = start.date()
-    end_date     = end.date()
-
-    while current_date <= end_date:
-
-        # Skip Saturday (5) and Sunday (6)
-        if current_date.weekday() >= 5:
-            current_date += timedelta(days=1)
+    total_hours = 0.0
+    current_day = start.date()
+    last_day    = end.date()
+    while current_day <= last_day:
+        if current_day.weekday() >= 5:
+            current_day += timedelta(days=1)
             continue
-
-        if current_date == start.date() == end_date:
-            hours = (
-                end - start
-            ).total_seconds() / 3600
-
-        elif current_date == start.date():
-            end_of_day = datetime.combine(
-                current_date + timedelta(days=1),
-                datetime.min.time()
-            )
-            hours = (
-                end_of_day - start
-            ).total_seconds() / 3600
-
-        elif current_date == end_date:
-            start_of_day = datetime.combine(
-                current_date,
-                datetime.min.time()
-            )
-            hours = (
-                end - start_of_day
-            ).total_seconds() / 3600
-
-        else:
-            hours = 24.0
-
-        total_hours += min(hours, DAILY_CAP)
-
-        current_date += timedelta(days=1)
-
+        day_start    = datetime.combine(current_day, OFFICE_START)
+        day_end      = datetime.combine(current_day, OFFICE_END)
+        actual_start = max(start, day_start)
+        actual_end   = min(end,   day_end)
+        if actual_end > actual_start:
+            total_hours += (actual_end - actual_start).total_seconds() / 3600
+        current_day += timedelta(days=1)
     return round(total_hours, 2)
 
 
-@app.post("/api/uvdesk-agent")
-async def uvdesk_agent_summary(
-    payload: AgentReportRequest = Body(
-        default_factory=AgentReportRequest
+def format_sla_hours(sla_hours: float) -> str:
+    if sla_hours < 1:
+        return f"{int(sla_hours * 60)} mins"
+    return f"{round(sla_hours, 2)} hrs"
+
+
+# =============================================
+# MODEL
+# =============================================
+
+class TicketDetailsRequest(BaseModel):
+    status     : Optional[str] = None
+    from_date  : Optional[str] = None
+    to_date    : Optional[str] = None
+    sla_filter : Optional[str] = "all"
+
+
+
+@app.post("/api/ticket-details")
+async def ticket_details(
+    payload: TicketDetailsRequest = Body(
+        default_factory=TicketDetailsRequest
     )
 ):
-
+    ...
     from_date    = payload.from_date
     to_date      = payload.to_date
     sla_type     = payload.sla_type
@@ -1920,66 +2321,60 @@ async def uvdesk_agent_summary(
 
     query = """
     SELECT
-        t.id AS ticket_id,
-        t.subject AS issue,
-
+        t.id       AS ticket_id,
+        t.subject  AS issue,
         t.agent_id,
 
-        CONCAT(
-            a.first_name,
-            ' ',
-            a.last_name
-        ) AS agent_name,
-
-        CONCAT(
-            c.first_name,
-            ' ',
-            c.last_name
-        ) AS added_by,
+        CONCAT(a.first_name, ' ', a.last_name) AS agent_name,
+        CONCAT(c.first_name, ' ', c.last_name) AS added_by,
 
         t.created_at,
         t.updated_at,
-
         t.status_id,
 
         sg.name AS project_name,
-
         ty.code AS ticket_type
 
     FROM uv_ticket t
 
     INNER JOIN uv_user a
-    ON t.agent_id = a.id
-    AND a.is_enabled != 2
+        ON t.agent_id = a.id
+       AND a.is_enabled != 2
 
     LEFT JOIN uv_user c
-    ON t.customer_id = c.id
+        ON t.customer_id = c.id
 
     LEFT JOIN uv_ticket_type ty
-    ON t.type_id = ty.id
+        ON t.type_id = ty.id
 
     LEFT JOIN uv_support_group sg
-    ON t.group_id = sg.id
+        ON t.group_id = sg.id
 
     WHERE t.is_trashed != 1
     """
 
-    rows = await database.fetch_all(
-        query=query
-    )
+    rows = await database.fetch_all(query=query)
+
+    STATUS_MAP = {
+        1: ("Open",     "open"),
+        2: ("Pending",  "pending"),
+        3: ("Answered", "answered"),
+        4: ("Resolved", "resolved"),
+        5: ("Closed",   "closed"),
+    }
 
     agents = defaultdict(
         lambda: {
-            "agent_id": None,
+            "agent_id"  : None,
             "agent_name": "",
             "updated_at": None,
-            "summary": {
-                "open": 0,
-                "pending": 0,
+            "summary"   : {
+                "open"    : 0,
+                "pending" : 0,
                 "answered": 0,
                 "resolved": 0,
-                "closed": 0,
-                "total": 0
+                "closed"  : 0,
+                "total"   : 0
             },
             "tickets": []
         }
@@ -1989,259 +2384,102 @@ async def uvdesk_agent_summary(
 
         r = dict(r)
 
-        # =====================================
-        # SLA HOURS — Mon-Fri, max 8 hrs/day
-        # =====================================
+        status_id  = r["status_id"]
+        created_at = parse_dt(r["created_at"])
+        updated_at = parse_dt(r["updated_at"])
 
-        created_at = r["created_at"]
-        updated_at = r["updated_at"]
+        # ── SLA ───────────────────────────────────────────────────────
+        sla_end   = get_sla_end(status_id, updated_at)
+        sla_hours = (
+            calculate_working_hours(created_at, sla_end)
+            if created_at else 0.0
+        )
 
-        if r["status_id"] == 5:
-            sla_end = updated_at if updated_at else datetime.now()
-        else:
-            sla_end = datetime.now()
-
-        sla_hours = calculate_working_hours(
-            created_at,
-            sla_end
-        ) if created_at else 0.0
-
-        # =====================================
-        # SLA FILTER
-        # =====================================
-
-        if (
-            sla_type == "gt_48"
-            and sla_hours <= 48
-        ):
+        # ── SLA filter ────────────────────────────────────────────────
+        if sla_type == "gt_48" and sla_hours <= 48:
+            continue
+        if sla_type == "lt_48" and sla_hours >= 48:
             continue
 
-        if (
-            sla_type == "lt_48"
-            and sla_hours >= 48
-        ):
-            continue
-
-        # =====================================
-        # DATE FILTER
-        # =====================================
-
+        # ── Date filter ───────────────────────────────────────────────
         if from_date and to_date:
+            fd = datetime.strptime(from_date, "%Y-%m-%d").date()
+            td = datetime.strptime(to_date,   "%Y-%m-%d").date()
 
-            fd = datetime.strptime(
-                from_date,
-                "%Y-%m-%d"
-            ).date()
-
-            td = datetime.strptime(
-                to_date,
-                "%Y-%m-%d"
-            ).date()
-
-            if r["status_id"] in (4, 5):
+            if status_id in (4, 5):
                 date_to_check = (
-                    r["updated_at"].date()
-                    if r["updated_at"]
-                    else r["created_at"].date()
+                    updated_at.date() if updated_at
+                    else created_at.date() if created_at
+                    else None
                 )
             else:
-                date_to_check = (
-                    r["created_at"].date()
-                )
+                date_to_check = created_at.date() if created_at else None
 
-            if not (
-                fd <= date_to_check <= td
-            ):
+            if not date_to_check:
+                continue
+            if not (fd <= date_to_check <= td):
                 continue
 
-        # =====================================
-        # AGENT ID FILTER
-        # =====================================
-
-        if agent_filter is not None:
-
-            if (
-                r["agent_id"]
-                != agent_filter
-            ):
-                continue
+        # ── Agent filter ──────────────────────────────────────────────
+        if agent_filter is not None and r["agent_id"] != agent_filter:
+            continue
 
         aid = r["agent_id"]
+        status_label, status_key = STATUS_MAP.get(status_id, ("Unknown", None))
 
-        if (
-            agents[aid]["agent_id"]
-            is None
-        ):
-
-            agents[aid]["agent_id"] = aid
-
-            agents[aid]["agent_name"] = (
-                r["agent_name"] or ""
-            )
-
-            agents[aid]["updated_at"] = (
-                r["updated_at"]
-            )
-
+        # ── Agent init / updated_at track ─────────────────────────────
+        if agents[aid]["agent_id"] is None:
+            agents[aid]["agent_id"]   = aid
+            agents[aid]["agent_name"] = r["agent_name"] or ""
+            agents[aid]["updated_at"] = updated_at
         else:
-
-            if (
-                r["updated_at"]
-                and (
-                    agents[aid]["updated_at"] is None
-                    or r["updated_at"]
-                    > agents[aid]["updated_at"]
-                )
+            if updated_at and (
+                agents[aid]["updated_at"] is None
+                or updated_at > agents[aid]["updated_at"]
             ):
+                agents[aid]["updated_at"] = updated_at
 
-                agents[aid]["updated_at"] = (
-                    r["updated_at"]
-                )
+        # ── Summary count ─────────────────────────────────────────────
+        if status_key:
+            agents[aid]["summary"][status_key] += 1
+        agents[aid]["summary"]["total"] += 1
 
-        status_id = r["status_id"]
-
-        if status_id == 1:
-
-            status = "Open"
-
-            agents[aid]["summary"][
-                "open"
-            ] += 1
-
-        elif status_id == 2:
-
-            status = "Pending"
-
-            agents[aid]["summary"][
-                "pending"
-            ] += 1
-
-        elif status_id == 3:
-
-            status = "Answered"
-
-            agents[aid]["summary"][
-                "answered"
-            ] += 1
-
-        elif status_id == 4:
-
-            status = "Resolved"
-
-            agents[aid]["summary"][
-                "resolved"
-            ] += 1
-
-        elif status_id == 5:
-
-            status = "Closed"
-
-            agents[aid]["summary"][
-                "closed"
-            ] += 1
-
-        else:
-
-            status = "Unknown"
-
-        agents[aid]["summary"][
-            "total"
-        ] += 1
-
+        # ── Ticket append ─────────────────────────────────────────────
         agents[aid]["tickets"].append({
-
-            "ticket_id":
-                f"#{r['ticket_id']}",
-
-            "issue":
-                r["issue"],
-
-            "added_by":
-                r["added_by"],
-
-            "added_date":
-                (
-                    r["created_at"].isoformat()
-                    if r["created_at"]
-                    else None
-                ),
-
-            "project":
-                r["project_name"],
-
-            "type":
-                r["ticket_type"],
-
-            "assigned_to":
-                r["agent_name"],
-
-            "status":
-                status,
-
-            "updated_date":
-                (
-                    r["updated_at"].isoformat()
-                    if r["updated_at"]
-                    else None
-                ),
-
-            "closed_date":
-                (
-                    r["updated_at"].isoformat()
-                    if status_id == 5
-                    else None
-                ),
-            "sla_hours":
-                (
-                    f"{int(sla_hours * 60)} mins"
-                    if sla_hours < 1
-                    else f"{round(sla_hours, 2)}"
-                ),
-
-            "sla_days":
-                round(sla_hours / 8, 2)
-
+            "ticket_id"   : f"#{r['ticket_id']}",
+            "issue"       : r["issue"],
+            "added_by"    : r["added_by"],
+            "added_date"  : created_at.isoformat() if created_at else None,
+            "project"     : r["project_name"],
+            "type"        : r["ticket_type"],
+            "assigned_to" : r["agent_name"],
+            "status"      : status_label,
+            "updated_date": updated_at.isoformat() if updated_at else None,
+            "closed_date" : (
+                updated_at.isoformat() if status_id == 5 else None
+            ),
+            "sla_hours"   : format_sla_hours(sla_hours),
+            "sla_days"    : round(sla_hours / 8.5, 2)
         })
-
-    # =====================================
-    # SORT BY updated_at ASCENDING
-    # =====================================
 
     sorted_agents = sorted(
         agents.values(),
-        key=lambda x: (
-            x["updated_at"]
-            if x["updated_at"]
-            else datetime.min
-        ),
-        reverse=False
+        key=lambda x: x["updated_at"] if x["updated_at"] else datetime.min
     )
 
     return {
-
-        "status": True,
-
-        "filters": {
-
-            "from_date":
-                from_date,
-
-            "to_date":
-                to_date,
-
-            "sla_type":
-                sla_type,
-
-            "agent_id":
-                agent_filter
+        "status"      : True,
+        "filters"     : {
+            "from_date": from_date,
+            "to_date"  : to_date,
+            "sla_type" : sla_type,
+            "agent_id" : agent_filter
         },
-
-        "total_agents":
-            len(sorted_agents),
-
-        "data":
-            sorted_agents
+        "total_agents": len(sorted_agents),
+        "data"        : sorted_agents
     }
+
+
 ########################################UV DESK AGENT SUMMARY#################################################################
 
 # class AgentSummaryRequest(BaseModel):
@@ -3181,286 +3419,792 @@ async def auth_check(request: Request):
 
 #########################################ticket details#######################################################
 
-class TicketDetailsRequest(BaseModel):
-    status: Optional[str] = None
-    from_date: Optional[str] = None
-    to_date: Optional[str] = None
+# class TicketDetailsRequest(BaseModel):
+#     status: Optional[str] = None
+#     from_date: Optional[str] = None
+#     to_date: Optional[str] = None
 
 
-@app.post("/api/ticket-details")
-async def ticket_details(
-    payload: TicketDetailsRequest = Body(
-        default_factory=TicketDetailsRequest
+# @app.post("/api/ticket-details")
+# async def ticket_details(
+#     payload: TicketDetailsRequest = Body(
+#         default_factory=TicketDetailsRequest
+#     )
+# ):
+
+#     try:
+
+#         query = """
+#         SELECT
+
+#             t.id,
+#             t.subject,
+#             t.status_id,
+#             t.created_at,
+#             t.updated_at,
+
+#             t.agent_id,
+
+#             CONCAT(
+#                 COALESCE(u.first_name,''),
+#                 ' ',
+#                 COALESCE(u.last_name,'')
+#             ) AS agent_name
+
+#         FROM uv_ticket t
+
+#         INNER JOIN uv_user u
+#             ON t.agent_id = u.id
+#            AND u.is_enabled != 2
+
+#         WHERE t.is_trashed != 1
+#         """
+
+#         rows = await database.fetch_all(query=query)
+
+#         data = []
+
+#         from_date = payload.from_date
+#         to_date = payload.to_date
+
+#         status_filter = (
+#             payload.status.lower().strip()
+#             if payload.status
+#             else None
+#         )
+
+#         # =========================
+#         # DATE FILTER SETUP
+#         # =========================
+
+#         fd = None
+#         td = None
+
+#         if from_date and to_date:
+
+#             fd = datetime.strptime(
+#                 from_date,
+#                 "%Y-%m-%d"
+#             ).date()
+
+#             td = datetime.strptime(
+#                 to_date,
+#                 "%Y-%m-%d"
+#             ).date()
+
+#         for row in rows:
+
+#             r = dict(row)
+
+#             status_id = r["status_id"]
+
+#             # =========================
+#             # STATUS FILTER
+#             # =========================
+
+#             if status_filter:
+
+#                 if status_filter == "active":
+
+#                     if status_id not in (1, 2, 3):
+#                         continue
+
+#                 elif status_filter == "resolved":
+
+#                     if status_id != 4:
+#                         continue
+
+#                 elif status_filter == "closed":
+
+#                     if status_id != 5:
+#                         continue
+
+#                 elif status_filter == "open":
+
+#                     if status_id != 1:
+#                         continue
+
+#                 elif status_filter == "pending":
+
+#                     if status_id != 2:
+#                         continue
+
+#                 elif status_filter == "answered":
+
+#                     if status_id != 3:
+#                         continue
+
+#                 elif status_filter == "total":
+
+#                     pass
+
+#             # =========================
+#             # DATE FILTER
+#             # =========================
+
+#             if fd and td:
+
+#                 if status_id in (4, 5):
+
+#                     date_to_check = (
+#                         r["updated_at"].date()
+#                         if r["updated_at"]
+#                         else r["created_at"].date()
+#                     )
+
+#                 else:
+
+#                     date_to_check = (
+#                         r["created_at"].date()
+#                         if r["created_at"]
+#                         else None
+#                     )
+
+#                 if not date_to_check:
+#                     continue
+
+#                 if not (
+#                     fd <= date_to_check <= td
+#                 ):
+#                     continue
+
+#             # =========================
+#             # STATUS NAME
+#             # =========================
+
+#             status_map = {
+
+#                 1: "Open",
+#                 2: "Pending",
+#                 3: "Answered",
+#                 4: "Resolved",
+#                 5: "Closed"
+
+#             }
+
+#             data.append({
+
+#                 "ticket_id": f"#{r['id']}",
+
+#                 "subject": r["subject"],
+
+#                 "agent_id": r["agent_id"],
+
+#                 "agent_name": r["agent_name"],
+
+#                 "status": status_map.get(
+#                     status_id,
+#                     "Unknown"
+#                 ),
+
+#                 "created_at": (
+#                     r["created_at"].isoformat()
+#                     if r["created_at"]
+#                     else None
+#                 ),
+
+#                 "updated_at": (
+#                     r["updated_at"].isoformat()
+#                     if r["updated_at"]
+#                     else None
+#                 )
+#             })
+
+#         return {
+
+#             "status": True,
+
+#             "filters": {
+
+#                 "status": payload.status,
+#                 "from_date": payload.from_date,
+#                 "to_date": payload.to_date
+
+#             },
+
+#             "count": len(data),
+
+#             "data": data
+
+#         }
+
+#     except Exception as e:
+
+#         return {
+
+#             "status": False,
+
+#             "message": str(e)
+
+#         }
+
+
+# def calculate_working_hours(start: datetime, end: datetime) -> float:
+#     if not start or not end or end <= start:
+#         return 0.0
+
+#     DAILY_CAP   = 8.0
+#     total_hours = 0.0
+#     current_date = start.date()
+#     end_date     = end.date()
+
+#     while current_date <= end_date:
+
+#         if current_date.weekday() >= 5:
+#             current_date += timedelta(days=1)
+#             continue
+
+#         if current_date == start.date() == end_date:
+#             hours = (end - start).total_seconds() / 3600
+
+#         elif current_date == start.date():
+#             end_of_day = datetime.combine(
+#                 current_date + timedelta(days=1),
+#                 datetime.min.time()
+#             )
+#             hours = (end_of_day - start).total_seconds() / 3600
+
+#         elif current_date == end_date:
+#             start_of_day = datetime.combine(
+#                 current_date,
+#                 datetime.min.time()
+#             )
+#             hours = (end - start_of_day).total_seconds() / 3600
+
+#         else:
+#             hours = 24.0
+
+#         total_hours += min(hours, DAILY_CAP)
+#         current_date += timedelta(days=1)
+
+#     return round(total_hours, 2)
+
+
+# class TicketDetailsRequest(BaseModel):
+#     status: Optional[str] = None
+#     from_date: Optional[str] = None
+#     to_date: Optional[str] = None
+#     sla_filter: Optional[str] = "all"   # "all" | "gt_48" | "lt_48"
+
+
+# @app.post("/api/ticket-details")
+# async def ticket_details(
+#     payload: TicketDetailsRequest = Body(
+#         default_factory=TicketDetailsRequest
+#     )
+# ):
+#     try:
+
+#         query = """
+#         SELECT
+
+#             t.id          AS ticket_id,
+#             t.subject,
+#             t.status_id,
+#             t.created_at,
+#             t.updated_at,
+#             t.agent_id,
+
+#             CONCAT(
+#                 COALESCE(a.first_name, ''),
+#                 ' ',
+#                 COALESCE(a.last_name, '')
+#             ) AS agent_name,
+
+#             CONCAT(
+#                 COALESCE(c.first_name, ''),
+#                 ' ',
+#                 COALESCE(c.last_name, '')
+#             ) AS added_by,
+
+#             sg.name  AS project_name,
+#             ty.code  AS ticket_type
+
+#         FROM uv_ticket t
+
+#         INNER JOIN uv_user a
+#             ON t.agent_id = a.id
+#            AND a.is_enabled != 2
+
+#         LEFT JOIN uv_user c
+#             ON t.customer_id = c.id
+
+#         LEFT JOIN uv_ticket_type ty
+#             ON t.type_id = ty.id
+
+#         LEFT JOIN uv_support_group sg
+#             ON t.group_id = sg.id
+
+#         WHERE t.is_trashed != 1
+#         """
+
+#         rows = await database.fetch_all(query=query)
+
+#         # ==================================================
+#         # SETUP
+#         # ==================================================
+
+#         STATUS_MAP = {
+#             1: "open",
+#             2: "pending",
+#             3: "answered",
+#             4: "resolved",
+#             5: "closed"
+#         }
+
+#         STATUS_LABEL = {
+#             1: "Open",
+#             2: "Pending",
+#             3: "Answered",
+#             4: "Resolved",
+#             5: "Closed"
+#         }
+
+#         use_date_filter = bool(payload.from_date and payload.to_date)
+
+#         if use_date_filter:
+#             from_dt = datetime.strptime(payload.from_date, "%Y-%m-%d").date()
+#             to_dt   = datetime.strptime(payload.to_date,   "%Y-%m-%d").date()
+
+#         status_filter = (
+#             payload.status.lower().strip()
+#             if payload.status
+#             else None
+#         )
+
+#         overall = {
+#             "open": 0, "pending": 0, "answered": 0,
+#             "resolved": 0, "closed": 0,
+#             "active": 0, "total": 0
+#         }
+
+#         data = []
+
+#         # ==================================================
+#         # LOOP
+#         # ==================================================
+
+#         for row in rows:
+
+#             r = dict(row)
+#             status_id = r["status_id"]
+
+#             # ── SLA calculation ───────────────────────────────────────
+#             created_at = r["created_at"]
+#             updated_at = r["updated_at"]
+#             sla_end    = updated_at if status_id == 5 and updated_at else datetime.now()
+#             sla_hours  = calculate_working_hours(created_at, sla_end) if created_at else 0.0
+
+#             # ── SLA filter ────────────────────────────────────────────
+#             if payload.sla_filter == "gt_48" and sla_hours <= 48:
+#                 continue
+#             if payload.sla_filter == "lt_48" and sla_hours >= 48:
+#                 continue
+
+#             # ── Status filter ─────────────────────────────────────────
+#             if status_filter:
+#                 if status_filter == "active":
+#                     if status_id not in (1, 2, 3):
+#                         continue
+#                 elif status_filter == "resolved":
+#                     if status_id != 4:
+#                         continue
+#                 elif status_filter == "closed":
+#                     if status_id != 5:
+#                         continue
+#                 elif status_filter == "open":
+#                     if status_id != 1:
+#                         continue
+#                 elif status_filter == "pending":
+#                     if status_id != 2:
+#                         continue
+#                 elif status_filter == "answered":
+#                     if status_id != 3:
+#                         continue
+#                 elif status_filter == "total":
+#                     pass
+
+#             # ── Date filter ───────────────────────────────────────────
+#             if use_date_filter:
+#                 if status_id in (4, 5):
+#                     date_to_check = (
+#                         r["updated_at"].date()
+#                         if r["updated_at"]
+#                         else r["created_at"].date()
+#                     )
+#                 else:
+#                     date_to_check = (
+#                         r["created_at"].date()
+#                         if r["created_at"]
+#                         else None
+#                     )
+
+#                 if not date_to_check:
+#                     continue
+
+#                 if not (from_dt <= date_to_check <= to_dt):
+#                     continue
+
+#             # ── Overall counts ────────────────────────────────────────
+#             status_key = STATUS_MAP.get(status_id, "unknown")
+#             if status_key in overall:
+#                 overall[status_key] += 1
+#             overall["total"] += 1
+
+#             # ── Ticket append ─────────────────────────────────────────
+#             data.append({
+#                 "ticket_id":   f"#{r['ticket_id']}",
+#                 "subject":     r["subject"],
+#                 "agent_id":    r["agent_id"],
+#                 "agent_name":  r["agent_name"],
+#                 "added_by":    r["added_by"],
+#                 "project":     r["project_name"],
+#                 "type":        r["ticket_type"],
+#                 "status":      STATUS_LABEL.get(status_id, "Unknown"),
+#                 "created_at":  (
+#                     r["created_at"].isoformat()
+#                     if r["created_at"] else None
+#                 ),
+#                 "updated_at":  (
+#                     r["updated_at"].isoformat()
+#                     if r["updated_at"] else None
+#                 ),
+#                 "closed_at":   (
+#                     r["updated_at"].strftime("%d %b %Y, %H:%M")
+#                     if status_id == 5 and r["updated_at"] else None
+#                 ),
+#                 "sla_hours":   (
+#                     f"{int(sla_hours * 60)} mins"
+#                     if sla_hours < 1
+#                     else f"{round(sla_hours, 2)} hrs"
+#                 ),
+#                 "sla_days":    round(sla_hours / 8, 2)
+#             })
+
+#         # ==================================================
+#         # ACTIVE COUNT
+#         # ==================================================
+
+#         overall["active"] = (
+#             overall["open"] + overall["pending"] + overall["answered"]
+#         )
+
+#         # ==================================================
+#         # TICKETS BY STATUS
+#         # ==================================================
+
+#         tickets_by_status = {
+#             "open":     [t for t in data if t["status"] == "Open"],
+#             "pending":  [t for t in data if t["status"] == "Pending"],
+#             "answered": [t for t in data if t["status"] == "Answered"],
+#             "resolved": [t for t in data if t["status"] == "Resolved"],
+#             "closed":   [t for t in data if t["status"] == "Closed"],
+#             "active":   [t for t in data if t["status"] in ("Open", "Pending", "Answered")],
+#             "total":    data
+#         }
+
+#         # ==================================================
+#         # RESPONSE
+#         # ==================================================
+
+#         return {
+#             "status": True,
+#             "filters": {
+#                 "status":     payload.status,
+#                 "from_date":  payload.from_date,
+#                 "to_date":    payload.to_date,
+#                 "sla_filter": payload.sla_filter
+#             },
+#             "overall":             overall,
+#             "tickets_by_status":   tickets_by_status,
+#             "count":               len(data),
+#             "data":                data
+#         }
+
+#     except Exception as e:
+#         return {
+#             "status": False,
+#             "message": str(e)
+#         }
+
+
+# =============================================
+# CONSTANTS
+# =============================================
+from zoneinfo import ZoneInfo
+IST          = ZoneInfo("Asia/Kolkata")
+OFFICE_START = dt_time(9, 30)
+OFFICE_END   = dt_time(18, 0)
+
+
+def parse_dt(val):
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.replace(tzinfo=None)
+    if isinstance(val, date_type):
+        return datetime(val.year, val.month, val.day)
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(str(val), fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromtimestamp(float(val))
+    except (ValueError, TypeError, OSError):
+        pass
+    return None
+
+
+def get_effective_now() -> datetime:
+    now = datetime.now(IST).replace(tzinfo=None)
+    if now.weekday() >= 5:
+        days_back   = now.weekday() - 4
+        last_friday = now - timedelta(days=days_back)
+        return datetime.combine(last_friday.date(), OFFICE_END)
+    if now.time() < OFFICE_START:
+        return datetime.combine(now.date(), OFFICE_START)
+    if now.time() > OFFICE_END:
+        return datetime.combine(now.date(), OFFICE_END)
+    return now
+
+
+def calculate_working_hours(start: datetime, end: datetime) -> float:
+    if not start or not end or end <= start:
+        return 0.0
+
+    total_hours = 0.0
+    current_day = start.date()
+    last_day    = end.date()
+
+    while current_day <= last_day:
+        if current_day.weekday() >= 5:
+            current_day += timedelta(days=1)
+            continue
+
+        work_start  = datetime.combine(current_day, OFFICE_START)
+        work_end    = datetime.combine(current_day, OFFICE_END)
+
+        clamp_start = max(start, work_start)   # ✅ start parameter safe
+        clamp_end   = min(end,   work_end)     # ✅ end parameter safe
+
+        if clamp_end > clamp_start:
+            total_hours += (
+                clamp_end - clamp_start
+            ).total_seconds() / 3600
+
+        current_day += timedelta(days=1)
+
+    return round(total_hours, 2)
+
+
+def format_sla_hours(sla_hours: float) -> str:
+    if sla_hours < 1:
+        return f"{int(sla_hours * 60)} mins"
+    return f"{round(sla_hours, 2)} hrs"
+
+# =============================================
+# MODEL
+# =============================================
+
+class AgentReportRequest(BaseModel):
+    from_date : str | None = None
+    to_date   : str | None = None
+    sla_type  : str | None = None
+    agent_id  : int | None = None
+
+
+# =============================================
+# ENDPOINT
+# =============================================
+
+@app.post("/api/uvdesk-agent")
+async def uvdesk_agent_summary(
+    payload: AgentReportRequest = Body(
+        default_factory=AgentReportRequest
     )
 ):
+    from_date    = payload.from_date
+    to_date      = payload.to_date
+    sla_type     = payload.sla_type
+    agent_filter = payload.agent_id
 
-    try:
+    query = """
+    SELECT
+        t.id       AS ticket_id,
+        t.subject  AS issue,
+        t.agent_id,
 
-        query = """
-        SELECT
+        CONCAT(a.first_name, ' ', a.last_name) AS agent_name,
+        CONCAT(c.first_name, ' ', c.last_name) AS added_by,
 
-            t.id,
-            t.subject,
-            t.status_id,
-            t.created_at,
-            t.updated_at,
+        t.created_at,
+        t.updated_at,
+        t.status_id,
 
-            t.agent_id,
+        sg.name AS project_name,
+        ty.code AS ticket_type
 
-            CONCAT(
-                COALESCE(u.first_name,''),
-                ' ',
-                COALESCE(u.last_name,'')
-            ) AS agent_name
+    FROM uv_ticket t
 
-        FROM uv_ticket t
+    INNER JOIN uv_user a
+        ON t.agent_id = a.id
+       AND a.is_enabled != 2
 
-        INNER JOIN uv_user u
-            ON t.agent_id = u.id
-           AND u.is_enabled != 2
+    LEFT JOIN uv_user c
+        ON t.customer_id = c.id
 
-        WHERE t.is_trashed != 1
-        """
+    LEFT JOIN uv_ticket_type ty
+        ON t.type_id = ty.id
 
-        rows = await database.fetch_all(query=query)
+    LEFT JOIN uv_support_group sg
+        ON t.group_id = sg.id
 
-        data = []
+    WHERE t.is_trashed != 1
+    """
 
-        from_date = payload.from_date
-        to_date = payload.to_date
+    rows = await database.fetch_all(query=query)
 
-        status_filter = (
-            payload.status.lower().strip()
-            if payload.status
-            else None
-        )
-
-        # =========================
-        # DATE FILTER SETUP
-        # =========================
-
-        fd = None
-        td = None
-
-        if from_date and to_date:
-
-            fd = datetime.strptime(
-                from_date,
-                "%Y-%m-%d"
-            ).date()
-
-            td = datetime.strptime(
-                to_date,
-                "%Y-%m-%d"
-            ).date()
-
-        for row in rows:
-
-            r = dict(row)
-
-            status_id = r["status_id"]
-
-            # =========================
-            # STATUS FILTER
-            # =========================
-
-            if status_filter:
-
-                if status_filter == "active":
-
-                    if status_id not in (1, 2, 3):
-                        continue
-
-                elif status_filter == "resolved":
-
-                    if status_id != 4:
-                        continue
-
-                elif status_filter == "closed":
-
-                    if status_id != 5:
-                        continue
-
-                elif status_filter == "open":
-
-                    if status_id != 1:
-                        continue
-
-                elif status_filter == "pending":
-
-                    if status_id != 2:
-                        continue
-
-                elif status_filter == "answered":
-
-                    if status_id != 3:
-                        continue
-
-                elif status_filter == "total":
-
-                    pass
-
-            # =========================
-            # DATE FILTER
-            # =========================
-
-            if fd and td:
-
-                if status_id in (4, 5):
-
-                    date_to_check = (
-                        r["updated_at"].date()
-                        if r["updated_at"]
-                        else r["created_at"].date()
-                    )
-
-                else:
-
-                    date_to_check = (
-                        r["created_at"].date()
-                        if r["created_at"]
-                        else None
-                    )
-
-                if not date_to_check:
-                    continue
-
-                if not (
-                    fd <= date_to_check <= td
-                ):
-                    continue
-
-            # =========================
-            # STATUS NAME
-            # =========================
-
-            status_map = {
-
-                1: "Open",
-                2: "Pending",
-                3: "Answered",
-                4: "Resolved",
-                5: "Closed"
-
-            }
-
-            data.append({
-
-                "ticket_id": f"#{r['id']}",
-
-                "subject": r["subject"],
-
-                "agent_id": r["agent_id"],
-
-                "agent_name": r["agent_name"],
-
-                "status": status_map.get(
-                    status_id,
-                    "Unknown"
-                ),
-
-                "created_at": (
-                    r["created_at"].isoformat()
-                    if r["created_at"]
-                    else None
-                ),
-
-                "updated_at": (
-                    r["updated_at"].isoformat()
-                    if r["updated_at"]
-                    else None
-                )
-            })
-
-        return {
-
-            "status": True,
-
-            "filters": {
-
-                "status": payload.status,
-                "from_date": payload.from_date,
-                "to_date": payload.to_date
-
-            },
-
-            "count": len(data),
-
-            "data": data
-
-        }
-
-    except Exception as e:
-
-        return {
-
-            "status": False,
-
-            "message": str(e)
-
-        }
-    
-
- ######################################TICKET CHAT API#######################################################
-
-@app.get("/api/ticket-chat")
-async def get_ticket_chat(ticket_id: int = Query(...)):
-    try:
-        query = """
-            SELECT
-                t.id,
-                t.ticket_id,
-                t.user_id,
-
-                CONCAT(
-                    COALESCE(u.first_name, ''),
-                    ' ',
-                    COALESCE(u.last_name, '')
-                ) AS user_name,
-
-                tk.agent_id,
-
-                t.thread_type,
-                t.source,
-                t.created_by,
-                t.message,
-                t.created_at
-
-            FROM uv_thread t
-
-            LEFT JOIN uv_user u
-                ON t.user_id = u.id
-
-            LEFT JOIN uv_ticket tk
-                ON t.ticket_id = tk.id
-
-            WHERE t.ticket_id = :ticket_id
-            ORDER BY t.created_at ASC
-        """
-
-        rows = await database.fetch_all(
-            query=query,
-            values={"ticket_id": ticket_id}
-        )
-
-        return {
-            "success": True,
-            "ticket_id": ticket_id,
-            "total_messages": len(rows),
-            "chat": [dict(row) for row in rows]
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-##################################################################################################
-
-from datetime import datetime
  
 
-from datetime import datetime, timedelta
+    STATUS_MAP = {
+        1: ("Open",     "open"),
+        2: ("Pending",  "pending"),
+        3: ("Answered", "answered"),
+        4: ("Resolved", "resolved"),
+        5: ("Closed",   "closed"),
+    }
+
+    agents = defaultdict(
+        lambda: {
+            "agent_id"  : None,
+            "agent_name": "",
+            "updated_at": None,
+            "summary"   : {
+                "open"    : 0,
+                "pending" : 0,
+                "answered": 0,
+                "resolved": 0,
+                "closed"  : 0,
+                "total"   : 0
+            },
+            "tickets": []
+        }
+    )
+
+    for r in rows:
+
+        r = dict(r)
+
+        status_id  = r["status_id"]
+        created_at = parse_dt(r["created_at"])
+        updated_at = parse_dt(r["updated_at"])
+
+        # ── SLA ───────────────────────────────────────────────────────
+        if status_id == 5:
+            sla_end = updated_at if updated_at else get_effective_now()
+        else:
+            sla_end = get_effective_now()
+
+        sla_hours = (
+            calculate_working_hours(created_at, sla_end)
+            if created_at else 0.0
+        )
+
+        # ── SLA filter ────────────────────────────────────────────────
+        if sla_type == "gt_48" and sla_hours <= 48:
+            continue
+        if sla_type == "lt_48" and sla_hours >= 48:
+            continue
+
+        # ── Date filter ───────────────────────────────────────────────
+        if from_date and to_date:
+            fd = datetime.strptime(from_date, "%Y-%m-%d").date()
+            td = datetime.strptime(to_date,   "%Y-%m-%d").date()
+
+            if status_id in (4, 5):
+                date_to_check = (
+                    updated_at.date() if updated_at
+                    else created_at.date() if created_at
+                    else None
+                )
+            else:
+                date_to_check = created_at.date() if created_at else None
+
+            if not date_to_check:
+                continue
+            if not (fd <= date_to_check <= td):
+                continue
+
+        # ── Agent filter ──────────────────────────────────────────────
+        if agent_filter is not None and r["agent_id"] != agent_filter:
+            continue
+
+        aid = r["agent_id"]
+        status_label, status_key = STATUS_MAP.get(status_id, ("Unknown", None))
+
+        # ── Agent init / updated_at track ─────────────────────────────
+        if agents[aid]["agent_id"] is None:
+            agents[aid]["agent_id"]   = aid
+            agents[aid]["agent_name"] = r["agent_name"] or ""
+            agents[aid]["updated_at"] = updated_at
+        else:
+            if updated_at and (
+                agents[aid]["updated_at"] is None
+                or updated_at > agents[aid]["updated_at"]
+            ):
+                agents[aid]["updated_at"] = updated_at
+
+        # ── Summary count ─────────────────────────────────────────────
+        if status_key:
+            agents[aid]["summary"][status_key] += 1
+        agents[aid]["summary"]["total"] += 1
+
+        # ── Ticket append ─────────────────────────────────────────────
+        agents[aid]["tickets"].append({
+            "ticket_id"   : f"#{r['ticket_id']}",
+            "issue"       : r["issue"],
+            "added_by"    : r["added_by"],
+            "added_date"  : created_at.isoformat() if created_at else None,
+            "project"     : r["project_name"],
+            "type"        : r["ticket_type"],
+            "assigned_to" : r["agent_name"],
+            "status"      : status_label,
+            "updated_date": updated_at.isoformat() if updated_at else None,
+            "closed_date" : (
+                updated_at.isoformat()
+                if status_id == 5 else None
+            ),
+            "sla_hours"   : format_sla_hours(sla_hours),
+            "sla_days"    : round(sla_hours / 8.5, 2)
+        })
+
+    sorted_agents = sorted(
+        agents.values(),
+        key=lambda x: x["updated_at"] if x["updated_at"] else datetime.min
+    )
+
+    return {
+        "status"      : True,
+        "filters"     : {
+            "from_date": from_date,
+            "to_date"  : to_date,
+            "sla_type" : sla_type,
+            "agent_id" : agent_filter
+        },
+        "total_agents": len(sorted_agents),
+        "data"        : sorted_agents
+    }
+
+##################################################################################################
+
+
  
 def calculate_working_hours(start: datetime, end: datetime) -> float:
     if not start or not end or end <= start:
@@ -3768,3 +4512,8 @@ async def uvdesk_agent_summary(
             "status": False,
             "message": str(e)
         }
+
+
+
+        ##################################
+        

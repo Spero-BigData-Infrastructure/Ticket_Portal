@@ -421,7 +421,7 @@ const AgentSummaryView = ({
                               display: "flex",
                               flexDirection: "column",
                               alignItems: "center",
-                              cursor: "pointer",
+                              // cursor: "pointer",
                             }}
                           >
                             <Box

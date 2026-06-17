@@ -2262,6 +2262,31 @@ def get_effective_now() -> datetime:
         return datetime.combine(now.date(), OFFICE_END)
     return now
 
+def normalize_start(dt: datetime) -> datetime:
+    if not dt:
+        return dt
+
+    # Saturday/Sunday
+    while dt.weekday() >= 5:
+        dt = datetime.combine(
+            dt.date() + timedelta(days=1),
+            OFFICE_START
+        )
+
+    # Before office hours
+    if dt.time() < OFFICE_START:
+        return datetime.combine(dt.date(), OFFICE_START)
+
+    # After office hours
+    if dt.time() >= OFFICE_END:
+        next_day = dt.date() + timedelta(days=1)
+
+        while next_day.weekday() >= 5:
+            next_day += timedelta(days=1)
+
+        return datetime.combine(next_day, OFFICE_START)
+
+    return dt
 
 def get_sla_end(status_id: int, updated_at) -> datetime:
     if status_id == 5:
@@ -2290,9 +2315,17 @@ def calculate_working_hours(start: datetime, end: datetime) -> float:
 
 
 def format_sla_hours(sla_hours: float) -> str:
-    if sla_hours < 1:
-        return f"{int(sla_hours * 60)} mins"
-    return f"{round(sla_hours, 2)} hrs"
+    total_seconds = int(sla_hours * 3600)
+
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    if hours:
+        return f"{hours} hrs {minutes} mins"
+    if minutes:
+        return f"{minutes} mins {seconds} sec"
+    return f"{seconds} sec"
 
 
 # =============================================
@@ -2409,11 +2442,30 @@ async def ticket_details(
             status_id = r["status_id"]
  
             # ── SLA calculation ───────────────────────────────────────
-            created_at = r["created_at"]
-            updated_at = r["updated_at"]
-            sla_end    = updated_at if status_id == 5 and updated_at else datetime.now()
-            sla_hours  = calculate_working_hours(created_at, sla_end) if created_at else 0.0
- 
+            created_at = parse_dt(r["created_at"])
+            updated_at = parse_dt(r["updated_at"])
+
+            # Closed -> created to updated
+            # Others -> created to current effective time
+            sla_end = updated_at if status_id == 5 else get_effective_now()
+
+            sla_hours = (
+                calculate_working_hours(created_at, sla_end)
+                if created_at and sla_end else 0.0
+            )
+
+            # Fallback:
+            # If working-hours SLA becomes 0 but actual duration exists
+            if (
+                sla_hours == 0
+                and created_at
+                and sla_end
+                and sla_end > created_at
+            ):
+                sla_hours = (
+                    sla_end - created_at
+                ).total_seconds() / 3600
+        
             # ── SLA filter ────────────────────────────────────────────
             if payload.sla_filter == "gt_48" and sla_hours <= 48:
                 continue
@@ -2492,12 +2544,8 @@ async def ticket_details(
                     r["updated_at"].strftime("%d %b %Y, %H:%M")
                     if status_id == 5 and r["updated_at"] else None
                 ),
-                "sla_hours":   (
-                    f"{int(sla_hours * 60)} mins"
-                    if sla_hours < 1
-                    else f"{round(sla_hours, 2)} hrs"
-                ),
-                "sla_days":    round(sla_hours / 8, 2)
+                "sla_hours":   format_sla_hours(sla_hours),
+                "sla_days":    round(sla_hours / 8.5, 2)
             })
  
         # ==================================================
@@ -4172,15 +4220,29 @@ async def uvdesk_agent_summary(
         updated_at = parse_dt(r["updated_at"])
 
         # ── SLA ───────────────────────────────────────────────────────
-        if status_id == 5:
-            sla_end = updated_at if updated_at else get_effective_now()
-        else:
-            sla_end = get_effective_now()
+        created_at = parse_dt(r["created_at"])
+        updated_at = parse_dt(r["updated_at"])
+
+        # Closed -> created to updated
+        # Others -> created to current effective time
+        sla_end = updated_at if status_id == 5 else get_effective_now()
 
         sla_hours = (
             calculate_working_hours(created_at, sla_end)
-            if created_at else 0.0
+            if created_at and sla_end else 0.0
         )
+
+        # Fallback:
+        # If working-hours SLA becomes 0 but actual duration exists
+        if (
+            sla_hours == 0
+            and created_at
+            and sla_end
+            and sla_end > created_at
+        ):
+            sla_hours = (
+                sla_end - created_at
+            ).total_seconds() / 3600
 
         # ── SLA filter ────────────────────────────────────────────────
         if sla_type == "gt_48" and sla_hours <= 48:

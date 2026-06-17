@@ -3996,83 +3996,83 @@ async def auth_check(request: Request):
 # =============================================
 # CONSTANTS
 # =============================================
-from zoneinfo import ZoneInfo
-IST          = ZoneInfo("Asia/Kolkata")
-OFFICE_START = dt_time(9, 30)
-OFFICE_END   = dt_time(18, 0)
+# from zoneinfo import ZoneInfo
+# IST          = ZoneInfo("Asia/Kolkata")
+# OFFICE_START = dt_time(9, 30)
+# OFFICE_END   = dt_time(18, 0)
 
 
-def parse_dt(val):
-    if val is None:
-        return None
-    if isinstance(val, datetime):
-        return val.replace(tzinfo=None)
-    if isinstance(val, date_type):
-        return datetime(val.year, val.month, val.day)
-    for fmt in (
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%dT%H:%M:%S.%f",
-        "%Y-%m-%d %H:%M:%S.%f",
-        "%Y-%m-%d",
-    ):
-        try:
-            return datetime.strptime(str(val), fmt)
-        except ValueError:
-            continue
-    try:
-        return datetime.fromtimestamp(float(val))
-    except (ValueError, TypeError, OSError):
-        pass
-    return None
+# def parse_dt(val):
+#     if val is None:
+#         return None
+#     if isinstance(val, datetime):
+#         return val.replace(tzinfo=None)
+#     if isinstance(val, date_type):
+#         return datetime(val.year, val.month, val.day)
+#     for fmt in (
+#         "%Y-%m-%dT%H:%M:%S",
+#         "%Y-%m-%d %H:%M:%S",
+#         "%Y-%m-%dT%H:%M:%S.%f",
+#         "%Y-%m-%d %H:%M:%S.%f",
+#         "%Y-%m-%d",
+#     ):
+#         try:
+#             return datetime.strptime(str(val), fmt)
+#         except ValueError:
+#             continue
+#     try:
+#         return datetime.fromtimestamp(float(val))
+#     except (ValueError, TypeError, OSError):
+#         pass
+#     return None
 
 
-def get_effective_now() -> datetime:
-    now = datetime.now(IST).replace(tzinfo=None)
-    if now.weekday() >= 5:
-        days_back   = now.weekday() - 4
-        last_friday = now - timedelta(days=days_back)
-        return datetime.combine(last_friday.date(), OFFICE_END)
-    if now.time() < OFFICE_START:
-        return datetime.combine(now.date(), OFFICE_START)
-    if now.time() > OFFICE_END:
-        return datetime.combine(now.date(), OFFICE_END)
-    return now
+# def get_effective_now() -> datetime:
+#     now = datetime.now(IST).replace(tzinfo=None)
+#     if now.weekday() >= 5:
+#         days_back   = now.weekday() - 4
+#         last_friday = now - timedelta(days=days_back)
+#         return datetime.combine(last_friday.date(), OFFICE_END)
+#     if now.time() < OFFICE_START:
+#         return datetime.combine(now.date(), OFFICE_START)
+#     if now.time() > OFFICE_END:
+#         return datetime.combine(now.date(), OFFICE_END)
+#     return now
 
 
-def calculate_working_hours(start: datetime, end: datetime) -> float:
-    if not start or not end or end <= start:
-        return 0.0
+# def calculate_working_hours(start: datetime, end: datetime) -> float:
+#     if not start or not end or end <= start:
+#         return 0.0
 
-    total_hours = 0.0
-    current_day = start.date()
-    last_day    = end.date()
+#     total_hours = 0.0
+#     current_day = start.date()
+#     last_day    = end.date()
 
-    while current_day <= last_day:
-        if current_day.weekday() >= 5:
-            current_day += timedelta(days=1)
-            continue
+#     while current_day <= last_day:
+#         if current_day.weekday() >= 5:
+#             current_day += timedelta(days=1)
+#             continue
 
-        work_start  = datetime.combine(current_day, OFFICE_START)
-        work_end    = datetime.combine(current_day, OFFICE_END)
+#         work_start  = datetime.combine(current_day, OFFICE_START)
+#         work_end    = datetime.combine(current_day, OFFICE_END)
 
-        clamp_start = max(start, work_start)   # ✅ start parameter safe
-        clamp_end   = min(end,   work_end)     # ✅ end parameter safe
+#         clamp_start = max(start, work_start)   # ✅ start parameter safe
+#         clamp_end   = min(end,   work_end)     # ✅ end parameter safe
 
-        if clamp_end > clamp_start:
-            total_hours += (
-                clamp_end - clamp_start
-            ).total_seconds() / 3600
+#         if clamp_end > clamp_start:
+#             total_hours += (
+#                 clamp_end - clamp_start
+#             ).total_seconds() / 3600
 
-        current_day += timedelta(days=1)
+#         current_day += timedelta(days=1)
 
-    return round(total_hours, 2)
+#     return round(total_hours, 2)
 
 
-def format_sla_hours(sla_hours: float) -> str:
-    if sla_hours < 1:
-        return f"{int(sla_hours * 60)} mins"
-    return f"{round(sla_hours, 2)} hrs"
+# def format_sla_hours(sla_hours: float) -> str:
+#     if sla_hours < 1:
+#         return f"{int(sla_hours * 60)} mins"
+#     return f"{round(sla_hours, 2)} hrs"
 
 # =============================================
 # MODEL

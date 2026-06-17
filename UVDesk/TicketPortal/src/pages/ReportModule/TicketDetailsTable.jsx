@@ -312,7 +312,7 @@ export default function TicketDetailsTable({
                       >
                         {ticket.sla_hours !== null &&
                         ticket.sla_hours !== undefined
-                          ? `${ticket.sla_hours} hrs`
+                          ? `${ticket.sla_hours} `
                           : "-"}
                       </TableCell>
                     </TableRow>

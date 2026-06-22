@@ -232,7 +232,7 @@ export default function MasterTicketTable({
                   "Subject",
                   "Project",
                   "Type",
-                  // "Agent",
+                  "Agent",
                   "Created",
                   "Status",
                   "Updated",
@@ -375,9 +375,9 @@ export default function MasterTicketTable({
                       <TableCell sx={{ color: "text.primary" }}>
                         {ticket.type || "-"}
                       </TableCell>
-                      {/* <TableCell sx={{ color: "text.primary" }}>
+                      <TableCell sx={{ color: "text.primary" }}>
                         {ticket.agent_name || "-"}
-                      </TableCell> */}
+                      </TableCell>
                       <TableCell sx={{ color: "text.primary" }}>
                         {formatDate
                           ? formatDate(ticket.created_at)

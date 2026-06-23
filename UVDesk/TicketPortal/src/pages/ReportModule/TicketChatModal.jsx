@@ -105,7 +105,8 @@ export default function TicketChatModal({
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
+      // 🔥 'xl' lagane se Material-UI ko allow milta hai maximum space lene ka
+      maxWidth="xl"
       fullWidth
       closeAfterTransition
       slots={{ backdrop: Backdrop }}
@@ -127,7 +128,8 @@ export default function TicketChatModal({
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
           style={{
             width: "100%",
-            maxWidth: "800px",
+            // 🔥 Framer motion div ki limits aur bada di hain (ab almost edge-to-edge jayega)
+            maxWidth: "1500px",
             margin: "24px",
             display: "flex",
             justifyContent: "center",
@@ -147,8 +149,9 @@ export default function TicketChatModal({
           boxShadow: isDark
             ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
             : "0 25px 50px -12px rgba(148, 163, 184, 0.25)",
-          // 🔥 Modal ki height yahan kam ki hai (Compact Look)
-          maxHeight: "65vh",
+          // 🔥 Modal ko screen ka 90% space lene ko bol diya
+          height: "90vh",
+          maxHeight: "95vh",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -185,7 +188,7 @@ export default function TicketChatModal({
               fontWeight="800"
               sx={{
                 color: isDark ? "#f8fafc" : "#0f172a",
-                fontSize: "1.05rem",
+                fontSize: "1.1rem", // Thoda bada header text
                 lineHeight: 1.2,
               }}
             >
@@ -197,11 +200,11 @@ export default function TicketChatModal({
               sx={{
                 color: isDark ? "#94a3b8" : "#64748b",
                 mt: 0.3,
-                maxWidth: { xs: "200px", sm: "450px" },
+                maxWidth: { xs: "300px", sm: "600px" },
                 whiteSpace: "nowrap",
                 textOverflow: "ellipsis",
                 overflow: "hidden",
-                fontSize: "0.825rem",
+                fontSize: "0.875rem",
               }}
             >
               {ticket?.issue || "View conversation log"}
@@ -214,14 +217,14 @@ export default function TicketChatModal({
             color: isDark ? "#94a3b8" : "#64748b",
             bgcolor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
             transition: "all 0.2s",
-            p: 1,
+            p: 1.2,
             "&:hover": {
               bgcolor: isDark ? "rgba(239, 68, 68, 0.2)" : "#fee2e2",
               color: "#ef4444",
             },
           }}
         >
-          <CloseIcon fontSize="small" />
+          <CloseIcon fontSize="medium" />
         </IconButton>
       </DialogTitle>
 
@@ -234,9 +237,9 @@ export default function TicketChatModal({
           flexGrow: 1,
           display: "flex",
           flexDirection: "column",
-          // 🔥 Chat section ki scrolling content height set ki hai
-          maxHeight: "calc(65vh - 80px)",
-          "&::-webkit-scrollbar": { width: "6px" },
+          // 🔥 Chat section ki height nayi height ke hisab se set ki (90vh - header height)
+          maxHeight: "calc(90vh - 85px)",
+          "&::-webkit-scrollbar": { width: "8px" },
           "&::-webkit-scrollbar-thumb": {
             backgroundColor: isDark ? "#334155" : "#cbd5e1",
             borderRadius: "100px",
@@ -250,11 +253,11 @@ export default function TicketChatModal({
               flexGrow: 1,
               justifyContent: "center",
               alignItems: "center",
-              minHeight: "200px",
+              minHeight: "300px",
             }}
           >
             <CircularProgress
-              size={30}
+              size={35}
               thickness={4}
               sx={{ color: "#2563eb" }}
             />
@@ -267,15 +270,15 @@ export default function TicketChatModal({
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
-              minHeight: "200px",
-              gap: 1.5,
+              minHeight: "300px",
+              gap: 2,
             }}
           >
             <ChatIcon
-              sx={{ fontSize: 36, color: isDark ? "#475569" : "#cbd5e1" }}
+              sx={{ fontSize: 48, color: isDark ? "#475569" : "#cbd5e1" }}
             />
             <Typography
-              variant="body2"
+              variant="body1"
               fontWeight="600"
               sx={{ color: isDark ? "#64748b" : "#94a3b8" }}
             >
@@ -283,12 +286,12 @@ export default function TicketChatModal({
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ p: { xs: 2, sm: 4, md: 5 } }}>
             <motion.div
               variants={chatContainerVariants}
               initial="hidden"
               animate="visible"
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "20px" }}
             >
               {chatHistory.map((chat, idx) => {
                 const isReply = chat.thread_type === "reply";
@@ -306,9 +309,9 @@ export default function TicketChatModal({
                   >
                     <Stack
                       direction={isReply ? "row-reverse" : "row"}
-                      spacing={{ xs: 1.2, sm: 1.5 }}
+                      spacing={{ xs: 1.5, sm: 2 }}
                       alignItems="flex-start"
-                      sx={{ maxWidth: { xs: "100%", sm: "85%" } }}
+                      sx={{ maxWidth: { xs: "100%", sm: "85%", md: "75%" } }} // 🔥 Text bubble ki width badi screen par manage karne ke liye
                     >
                       {/* Avatar Mapping */}
                       <Avatar
@@ -316,15 +319,15 @@ export default function TicketChatModal({
                           bgcolor: isDark ? "#1e293b" : "#f1f5f9",
                           color: roleColor,
                           border: `1.5px solid ${alpha(roleColor, 0.4)}`,
-                          width: 34,
-                          height: 34,
+                          width: 40,
+                          height: 40,
                           boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                         }}
                       >
                         {isReply ? (
-                          <AgentIcon sx={{ fontSize: "1.05rem" }} />
+                          <AgentIcon sx={{ fontSize: "1.2rem" }} />
                         ) : (
-                          <UserIcon sx={{ fontSize: "1.05rem" }} />
+                          <UserIcon sx={{ fontSize: "1.2rem" }} />
                         )}
                       </Avatar>
 
@@ -341,8 +344,8 @@ export default function TicketChatModal({
                           sx={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 1,
-                            mb: 0.4,
+                            gap: 1.2,
+                            mb: 0.6,
                             px: 0.5,
                             flexDirection: isReply ? "row-reverse" : "row",
                           }}
@@ -352,7 +355,7 @@ export default function TicketChatModal({
                             fontWeight="700"
                             sx={{
                               color: isDark ? "#e2e8f0" : "#1e293b",
-                              fontSize: "0.825rem",
+                              fontSize: "0.9rem",
                             }}
                           >
                             {chat.user_name ||
@@ -363,12 +366,13 @@ export default function TicketChatModal({
                             label={chat.thread_type || "Message"}
                             size="small"
                             sx={{
-                              height: "16px",
-                              fontSize: "0.6rem",
+                              height: "20px",
+                              fontSize: "0.65rem",
                               fontWeight: "700",
                               textTransform: "uppercase",
-                              borderRadius: "5px",
+                              borderRadius: "6px",
                               letterSpacing: "0.02em",
+                              px: 0.5,
                               bgcolor: isReply
                                 ? alpha("#3b82f6", 0.12)
                                 : alpha("#10b981", 0.12),
@@ -382,7 +386,7 @@ export default function TicketChatModal({
                             sx={{
                               color: isDark ? "#64748b" : "#94a3b8",
                               fontWeight: "500",
-                              fontSize: "0.7rem",
+                              fontSize: "0.75rem",
                             }}
                           >
                             {formatDate
@@ -395,10 +399,10 @@ export default function TicketChatModal({
                         <Paper
                           elevation={0}
                           sx={{
-                            p: 1.75,
+                            p: 2,
                             borderRadius: isReply
-                              ? "14px 4px 14px 14px"
-                              : "4px 14px 14px 14px",
+                              ? "16px 4px 16px 16px"
+                              : "4px 16px 16px 16px",
                             bgcolor: isReply
                               ? isDark
                                 ? "#1e293b"
@@ -416,17 +420,17 @@ export default function TicketChatModal({
                                   : "#dcfce7"
                             }`,
                             color: isDark ? "#cbd5e1" : "#334155",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.01)",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
                           }}
                         >
                           <Box
                             sx={{
-                              fontSize: "0.875rem",
-                              lineHeight: 1.5,
+                              fontSize: "0.95rem", // 🔥 Badi screen par text bhi clear dikhega
+                              lineHeight: 1.6,
                               letterSpacing: "0.01em",
                               wordBreak: "break-word",
                               "& p": { m: 0 },
-                              "& p:not(:last-child)": { mb: 1 },
+                              "& p:not(:last-child)": { mb: 1.5 },
                               "& strong": {
                                 fontWeight: "700",
                                 color: isDark ? "#fff" : "#0f172a",

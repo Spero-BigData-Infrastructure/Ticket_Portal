@@ -22,7 +22,7 @@ import {
   PersonOutlineOutlined as UserIcon,
 } from "@mui/icons-material";
 
-// 🔥 Import API Service
+// Import API Service
 import reportService from "../../api/reportService";
 
 // Modern Chat Stagger Animation Variants
@@ -44,7 +44,7 @@ const getBubbleVariants = (isReply) => ({
   },
 });
 
-// Helper function: HTML decode karne ke liye
+// Helper function to decode HTML strings received from the API
 const decodeHTML = (htmlStr) => {
   if (!htmlStr) return "";
   const txt = document.createElement("textarea");
@@ -105,7 +105,7 @@ export default function TicketChatModal({
     <Dialog
       open={open}
       onClose={handleClose}
-      // 🔥 'xl' lagane se Material-UI ko allow milta hai maximum space lene ka
+      // Use 'xl' to allow Material-UI to take up the maximum possible width
       maxWidth="xl"
       fullWidth
       closeAfterTransition
@@ -128,7 +128,7 @@ export default function TicketChatModal({
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
           style={{
             width: "100%",
-            // 🔥 Framer motion div ki limits aur bada di hain (ab almost edge-to-edge jayega)
+            // Increased Framer motion container width for a near edge-to-edge experience
             maxWidth: "1500px",
             margin: "24px",
             display: "flex",
@@ -149,7 +149,7 @@ export default function TicketChatModal({
           boxShadow: isDark
             ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
             : "0 25px 50px -12px rgba(148, 163, 184, 0.25)",
-          // 🔥 Modal ko screen ka 90% space lene ko bol diya
+          // Set the modal to take up 90% of the screen height
           height: "90vh",
           maxHeight: "95vh",
           overflow: "hidden",
@@ -158,7 +158,7 @@ export default function TicketChatModal({
         },
       }}
     >
-      {/* 🏷️ Sticky Premium Header */}
+      {/* Sticky Premium Header */}
       <DialogTitle
         sx={{
           display: "flex",
@@ -188,7 +188,7 @@ export default function TicketChatModal({
               fontWeight="800"
               sx={{
                 color: isDark ? "#f8fafc" : "#0f172a",
-                fontSize: "1.1rem", // Thoda bada header text
+                fontSize: "1.1rem", // Slightly larger header text
                 lineHeight: 1.2,
               }}
             >
@@ -228,7 +228,7 @@ export default function TicketChatModal({
         </IconButton>
       </DialogTitle>
 
-      {/* 💬 Smooth Scroll Chat Area */}
+      {/* Smooth Scroll Chat Area */}
       <DialogContent
         sx={{
           p: 0,
@@ -237,7 +237,7 @@ export default function TicketChatModal({
           flexGrow: 1,
           display: "flex",
           flexDirection: "column",
-          // 🔥 Chat section ki height nayi height ke hisab se set ki (90vh - header height)
+          // Adjusted chat section height based on the new modal height
           maxHeight: "calc(90vh - 85px)",
           "&::-webkit-scrollbar": { width: "8px" },
           "&::-webkit-scrollbar-thumb": {
@@ -311,7 +311,7 @@ export default function TicketChatModal({
                       direction={isReply ? "row-reverse" : "row"}
                       spacing={{ xs: 1.5, sm: 2 }}
                       alignItems="flex-start"
-                      sx={{ maxWidth: { xs: "100%", sm: "85%", md: "75%" } }} // 🔥 Text bubble ki width badi screen par manage karne ke liye
+                      sx={{ maxWidth: { xs: "100%", sm: "85%", md: "75%" } }} // Restrict max bubble width on larger screens
                     >
                       {/* Avatar Mapping */}
                       <Avatar
@@ -339,7 +339,7 @@ export default function TicketChatModal({
                           alignItems: isReply ? "flex-end" : "flex-start",
                         }}
                       >
-                        {/* Meta Row */}
+                        {/* Meta Info Row */}
                         <Box
                           sx={{
                             display: "flex",
@@ -425,7 +425,7 @@ export default function TicketChatModal({
                         >
                           <Box
                             sx={{
-                              fontSize: "0.95rem", // 🔥 Badi screen par text bhi clear dikhega
+                              fontSize: "0.95rem", // Larger font for better readability
                               lineHeight: 1.6,
                               letterSpacing: "0.01em",
                               wordBreak: "break-word",
@@ -434,6 +434,17 @@ export default function TicketChatModal({
                               "& strong": {
                                 fontWeight: "700",
                                 color: isDark ? "#fff" : "#0f172a",
+                              },
+                              // Handle images inside the HTML string to prevent overflow
+                              "& img": {
+                                maxWidth: "100%", // Prevent images from exceeding container width
+                                maxHeight: "300px", // Cap the height for extremely long images
+                                objectFit: "contain", // Keep aspect ratio without stretching
+                                borderRadius: "8px", // Add smooth corners to the image
+                                display: "block",
+                                marginTop: "12px",
+                                marginBottom: "12px",
+                                cursor: "pointer",
                               },
                             }}
                             dangerouslySetInnerHTML={{

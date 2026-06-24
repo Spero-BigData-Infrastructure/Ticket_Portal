@@ -20,6 +20,8 @@ import {
   ForumOutlined as ChatIcon,
   SupportAgentOutlined as AgentIcon,
   PersonOutlineOutlined as UserIcon,
+  InsertDriveFileOutlined as FileIcon, // <-- Added Icon
+  DownloadOutlined as DownloadIcon, // <-- Added Icon
 } from "@mui/icons-material";
 
 // Import API Service
@@ -50,6 +52,15 @@ const decodeHTML = (htmlStr) => {
   const txt = document.createElement("textarea");
   txt.innerHTML = htmlStr;
   return txt.value;
+};
+
+// Helper function to format file sizes nicely (e.g., 35 KB, 2 MB)
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 export default function TicketChatModal({
@@ -105,7 +116,6 @@ export default function TicketChatModal({
     <Dialog
       open={open}
       onClose={handleClose}
-      // Use 'xl' to allow Material-UI to take up the maximum possible width
       maxWidth="xl"
       fullWidth
       closeAfterTransition
@@ -128,7 +138,6 @@ export default function TicketChatModal({
           transition={{ type: "spring", stiffness: 360, damping: 28 }}
           style={{
             width: "100%",
-            // Increased Framer motion container width for a near edge-to-edge experience
             maxWidth: "1500px",
             margin: "24px",
             display: "flex",
@@ -149,7 +158,6 @@ export default function TicketChatModal({
           boxShadow: isDark
             ? "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
             : "0 25px 50px -12px rgba(148, 163, 184, 0.25)",
-          // Set the modal to take up 90% of the screen height
           height: "90vh",
           maxHeight: "95vh",
           overflow: "hidden",
@@ -188,7 +196,7 @@ export default function TicketChatModal({
               fontWeight="800"
               sx={{
                 color: isDark ? "#f8fafc" : "#0f172a",
-                fontSize: "1.1rem", // Slightly larger header text
+                fontSize: "1.1rem",
                 lineHeight: 1.2,
               }}
             >
@@ -237,7 +245,6 @@ export default function TicketChatModal({
           flexGrow: 1,
           display: "flex",
           flexDirection: "column",
-          // Adjusted chat section height based on the new modal height
           maxHeight: "calc(90vh - 85px)",
           "&::-webkit-scrollbar": { width: "8px" },
           "&::-webkit-scrollbar-thumb": {
@@ -311,7 +318,7 @@ export default function TicketChatModal({
                       direction={isReply ? "row-reverse" : "row"}
                       spacing={{ xs: 1.5, sm: 2 }}
                       alignItems="flex-start"
-                      sx={{ maxWidth: { xs: "100%", sm: "85%", md: "75%" } }} // Restrict max bubble width on larger screens
+                      sx={{ maxWidth: { xs: "100%", sm: "85%", md: "75%" } }}
                     >
                       {/* Avatar Mapping */}
                       <Avatar
@@ -337,6 +344,7 @@ export default function TicketChatModal({
                           display: "flex",
                           flexDirection: "column",
                           alignItems: isReply ? "flex-end" : "flex-start",
+                          width: "100%",
                         }}
                       >
                         {/* Meta Info Row */}
@@ -400,6 +408,7 @@ export default function TicketChatModal({
                           elevation={0}
                           sx={{
                             p: 2,
+                            width: "100%",
                             borderRadius: isReply
                               ? "16px 4px 16px 16px"
                               : "4px 16px 16px 16px",
@@ -425,7 +434,7 @@ export default function TicketChatModal({
                         >
                           <Box
                             sx={{
-                              fontSize: "0.95rem", // Larger font for better readability
+                              fontSize: "0.95rem",
                               lineHeight: 1.6,
                               letterSpacing: "0.01em",
                               wordBreak: "break-word",
@@ -435,12 +444,11 @@ export default function TicketChatModal({
                                 fontWeight: "700",
                                 color: isDark ? "#fff" : "#0f172a",
                               },
-                              // Handle images inside the HTML string to prevent overflow
                               "& img": {
-                                maxWidth: "100%", // Prevent images from exceeding container width
-                                maxHeight: "300px", // Cap the height for extremely long images
-                                objectFit: "contain", // Keep aspect ratio without stretching
-                                borderRadius: "8px", // Add smooth corners to the image
+                                maxWidth: "100%",
+                                maxHeight: "300px",
+                                objectFit: "contain",
+                                borderRadius: "8px",
                                 display: "block",
                                 marginTop: "12px",
                                 marginBottom: "12px",
@@ -451,6 +459,102 @@ export default function TicketChatModal({
                               __html: decodeHTML(chat.message),
                             }}
                           />
+
+                          {/* --- NEW ATTACHMENT SECTION --- */}
+                          {chat.attachments && chat.attachments.length > 0 && (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 1,
+                                mt: 2,
+                              }}
+                            >
+                              {chat.attachments.map((file) => (
+                                <Paper
+                                  key={file.id}
+                                  component="a"
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download={file.name} // Prompts file download
+                                  elevation={0}
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    p: 1.5,
+                                    borderRadius: "10px",
+                                    textDecoration: "none",
+                                    bgcolor: isDark
+                                      ? "rgba(0,0,0,0.25)"
+                                      : "rgba(255,255,255,0.6)",
+                                    border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+                                    transition: "all 0.2s ease-in-out",
+                                    "&:hover": {
+                                      bgcolor: isDark
+                                        ? "rgba(0,0,0,0.4)"
+                                        : "rgba(255,255,255,0.9)",
+                                      borderColor: isReply
+                                        ? "#3b82f6"
+                                        : "#10b981",
+                                    },
+                                  }}
+                                >
+                                  {/* File Icon */}
+                                  <Avatar
+                                    sx={{
+                                      bgcolor: isDark ? "#334155" : "#f1f5f9",
+                                      color: isReply ? "#3b82f6" : "#10b981",
+                                      mr: 2,
+                                    }}
+                                  >
+                                    <FileIcon />
+                                  </Avatar>
+
+                                  {/* File Name & Size */}
+                                  <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: isDark ? "#e2e8f0" : "#1e293b",
+                                        fontWeight: 600,
+                                        whiteSpace: "nowrap",
+                                        textOverflow: "ellipsis",
+                                        overflow: "hidden",
+                                      }}
+                                    >
+                                      {file.name}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        color: isDark ? "#94a3b8" : "#64748b",
+                                      }}
+                                    >
+                                      {formatFileSize(file.size)} •{" "}
+                                      {file.content_type
+                                        .split("/")
+                                        .pop()
+                                        .toUpperCase() || "FILE"}
+                                    </Typography>
+                                  </Box>
+
+                                  {/* Download Icon */}
+                                  <IconButton
+                                    size="small"
+                                    component="span"
+                                    sx={{
+                                      ml: 1,
+                                      color: isDark ? "#94a3b8" : "#64748b",
+                                    }}
+                                  >
+                                    <DownloadIcon fontSize="small" />
+                                  </IconButton>
+                                </Paper>
+                              ))}
+                            </Box>
+                          )}
+                          {/* --- END ATTACHMENT SECTION --- */}
                         </Paper>
                       </Box>
                     </Stack>

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Box, Typography, useTheme } from "@mui/material";
 import {
@@ -16,6 +17,7 @@ import {
   Category as CategoryIcon,
   Dashboard as DashboardIcon,
   Assessment as AssessmentIcon,
+  GridView as GridViewIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -86,14 +88,18 @@ function Dashboard() {
   const [dateFilter, setDateFilter] = useState("till_date");
 
   const activeTab = location.pathname.includes("report-module")
-    ? "report"
+  ? "report"
+  : location.pathname.includes("workload")
+    ? "workload"                                           
     : "dashboard";
 
-  const handleTabChange = (event, newValue) => {
-    if (newValue !== null && newValue !== activeTab) {
-      navigate(newValue === "dashboard" ? "/" : "/report-module");
-    }
-  };
+const handleTabChange = (event, newValue) => {
+  if (newValue !== null && newValue !== activeTab) {
+    if (newValue === "dashboard") navigate("/");
+    else if (newValue === "report") navigate("/report-module");
+    else if (newValue === "workload") navigate("/workload");  // ← ADD THIS
+  }
+};
 
   const { data: wsData, isConnected } = useWebSocket("/uvdesk_dashboard");
 
@@ -270,6 +276,12 @@ function Dashboard() {
                   label: "Report",
                   icon: <AssessmentIcon sx={{ mr: 1, fontSize: 16 }} />,
                 },
+                {
+                  id: "workload",                                        // ← ADD THIS
+                  label: "Workload",
+                  icon: <GridViewIcon sx={{ mr: 1, fontSize: 16 }} />,
+               },
+               
               ].map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (

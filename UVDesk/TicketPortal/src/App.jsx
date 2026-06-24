@@ -16,6 +16,7 @@ import Loader from "./Component/common/Loader";
 
 const Dashboard = lazy(() => import("./pages/Dashboard/Dashbord"));
 const Report = lazy(() => import("./pages/ReportModule/report"));
+const Workload = lazy(() => import("./pages/Workload/WorkloadPage"));
 
 function App() {
   const [mode, setMode] = useState("light");
@@ -125,6 +126,7 @@ function App() {
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/report-module" element={<Report />} />
+                <Route path="/workload" element={<Workload />} />
               </Route>
             </Routes>
           </Suspense>

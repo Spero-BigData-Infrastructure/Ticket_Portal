@@ -3,6 +3,7 @@ import json
 import asyncio
 import base64
 import tempfile
+from sqlalchemy import text
 import hashlib
 from io import BytesIO
 import time
@@ -1961,87 +1962,371 @@ async def uvdesk_agent_summary(
 ############################################################################################################
         
 
+# @app.get("/api/ticket-chat")
+
+# async def get_ticket_chat(ticket_id: int = Query(...)):
+
+#     try:
+
+#         query = """
+
+#             SELECT
+
+#                 t.id,
+
+#                 t.ticket_id,
+
+#                 t.user_id,
+ 
+#                 CONCAT(
+
+#                     COALESCE(u.first_name, ''),
+
+#                     ' ',
+
+#                     COALESCE(u.last_name, '')
+
+#                 ) AS user_name,
+ 
+#                 tk.agent_id,
+ 
+#                 t.thread_type,
+
+#                 t.source,
+
+#                 t.created_by,
+
+#                 t.message,
+
+#                 t.created_at
+ 
+#             FROM uv_thread t
+ 
+#             LEFT JOIN uv_user u
+
+#                 ON t.user_id = u.id
+ 
+#             LEFT JOIN uv_ticket tk
+
+#                 ON t.ticket_id = tk.id
+ 
+#             WHERE t.ticket_id = :ticket_id
+
+#             ORDER BY t.created_at ASC
+
+#         """
+ 
+#         rows = await database.fetch_all(
+
+#             query=query,
+
+#             values={"ticket_id": ticket_id}
+
+#         )
+ 
+#         return {
+
+#             "success": True,
+
+#             "ticket_id": ticket_id,
+
+#             "total_messages": len(rows),
+
+#             "chat": [dict(row) for row in rows]
+
+#         }
+ 
+#     except Exception as e:
+
+#         return {
+
+#             "success": False,
+
+#             "error": str(e)
+
+#         }
+    
 @app.get("/api/ticket-chat")
-
 async def get_ticket_chat(ticket_id: int = Query(...)):
-
     try:
-
+ 
+        BASE_URL = "http://122.176.232.35:9090/uvdesk/public/"
+ 
         query = """
-
             SELECT
-
                 t.id,
-
                 t.ticket_id,
-
                 t.user_id,
  
                 CONCAT(
-
                     COALESCE(u.first_name, ''),
-
                     ' ',
-
                     COALESCE(u.last_name, '')
-
                 ) AS user_name,
  
                 tk.agent_id,
  
                 t.thread_type,
-
                 t.source,
-
                 t.created_by,
-
                 t.message,
-
-                t.created_at
+                t.created_at,
+ 
+                a.id AS attachment_id,
+                a.name AS attachment_name,
+                a.path AS attachment_path,
+                a.content_type,
+                a.size
  
             FROM uv_thread t
  
             LEFT JOIN uv_user u
-
                 ON t.user_id = u.id
  
             LEFT JOIN uv_ticket tk
-
                 ON t.ticket_id = tk.id
  
+            LEFT JOIN uv_ticket_attachments a
+                ON t.id = a.thread_id
+ 
             WHERE t.ticket_id = :ticket_id
-
+ 
             ORDER BY t.created_at ASC
-
         """
  
         rows = await database.fetch_all(
-
             query=query,
-
             values={"ticket_id": ticket_id}
-
         )
  
+        chat_map = {}
+ 
+        for row in rows:
+            row = dict(row)
+ 
+            thread_id = row["id"]
+ 
+            if thread_id not in chat_map:
+                chat_map[thread_id] = {
+                    "id": row["id"],
+                    "ticket_id": row["ticket_id"],
+                    "user_id": row["user_id"],
+                    "user_name": row["user_name"].strip() if row["user_name"] else "",
+                    "agent_id": row["agent_id"],
+                    "thread_type": row["thread_type"],
+                    "source": row["source"],
+                    "created_by": row["created_by"],
+                    "message": row["message"],
+                    "created_at": row["created_at"],
+                    "attachments": []
+                }
+ 
+            if row["attachment_id"]:
+                chat_map[thread_id]["attachments"].append({
+                    "id": row["attachment_id"],
+                    "name": row["attachment_name"],
+                    "url": f"{BASE_URL}{row['attachment_path']}",
+                    "content_type": row["content_type"],
+                    "size": row["size"]
+                })
+ 
         return {
-
             "success": True,
-
             "ticket_id": ticket_id,
-
-            "total_messages": len(rows),
-
-            "chat": [dict(row) for row in rows]
-
+            "total_messages": len(chat_map),
+            "chat": list(chat_map.values())
         }
  
     except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+##############################################################################################
+
+
+class ProjectHeatmapRequest(BaseModel):
+    from_date: Optional[str] = None
+    to_date: Optional[str] = None
+    project_name: Optional[str] = None
+
+
+@app.post("/api/project-heatmap")
+async def project_heatmap(
+    payload: ProjectHeatmapRequest = Body(
+        default_factory=ProjectHeatmapRequest
+    )
+):
+    try:
+        STATUS_MAP = {
+            1: "open",
+            2: "pending",
+            3: "answered",
+            4: "resolved",
+            5: "closed",
+        }
+
+        # ✅ Dashboard jaisa — sirf is_trashed filter
+        filters = [
+            "t.is_trashed != 1",
+        ]
+
+        params = {}
+
+        # ── Date Filter ──────────────────────────────────────────
+        if payload.from_date and payload.to_date:
+            filters.append("""
+            (
+                (t.status_id IN (1,2,3)
+                    AND DATE(t.created_at) BETWEEN :from_date AND :to_date)
+                OR
+                (t.status_id IN (4,5)
+                    AND DATE(t.updated_at) BETWEEN :from_date AND :to_date)
+            )
+            """)
+            params["from_date"] = payload.from_date
+            params["to_date"]   = payload.to_date
+
+        else:
+            filters.append("""
+            (
+                (t.status_id IN (1,2,3)
+                    AND YEAR(t.created_at) = :current_year)
+                OR
+                (t.status_id IN (4,5)
+                    AND YEAR(t.updated_at) = :current_year)
+            )
+            """)
+            params["current_year"] = datetime.now().year
+
+        # ── Project Filter ───────────────────────────────────────
+        if payload.project_name:
+            filters.append("COALESCE(st.name, 'Unassigned') = :project_name")
+            params["project_name"] = payload.project_name
+
+        where_clause = " AND ".join(filters)
+
+        # ✅ uv_ticket FIRST — Dashboard jaisa INNER JOIN uv_user
+        # ✅ LEFT JOIN uv_support_team — NULL subGroup_id wale bhi aayenge
+        query = f"""
+        SELECT
+            COALESCE(st.id, 0)              AS project_id,
+            COALESCE(st.name, 'Unassigned') AS project_name,
+            t.status_id,
+            CASE
+                WHEN t.status_id IN (1,2,3)
+                    THEN DATE_FORMAT(t.created_at, '%b')
+                ELSE DATE_FORMAT(t.updated_at, '%b')
+            END AS month_name
+        FROM uv_ticket t
+        INNER JOIN uv_user u
+            ON t.agent_id = u.id
+            AND u.is_enabled != 2
+        LEFT JOIN uv_support_team st
+            ON t.subGroup_id = st.id
+        WHERE {where_clause}
+        """
+
+        rows = await cached_query(
+            query,
+            params,
+            ttl=300,
+            fetch="all",
+        )
+
+        # ── Project Dropdown ─────────────────────────────────────
+        project_rows = await cached_query(
+            """
+            SELECT id, name
+            FROM uv_support_team
+            ORDER BY name
+            """,
+            ttl=300,
+            fetch="all",
+        )
+
+        project_dropdown = [
+            {
+                "project_id":   int(r["id"]),
+                "project_name": str(r["name"] or "")
+            }
+            for r in (project_rows or [])
+        ]
+
+        # Unassigned bhi dropdown mein add karo
+        project_dropdown.append({
+            "project_id":   0,
+            "project_name": "Unassigned"
+        })
+
+        # ── Month-wise Aggregation ───────────────────────────────
+        month_data = defaultdict(
+            lambda: defaultdict(
+                lambda: {
+                    "total": 0,
+                    "status_breakdown": defaultdict(int)
+                }
+            )
+        )
+
+        for row in rows or []:
+
+            month_name = row["month_name"]
+            if not month_name:
+                continue
+
+            project_id   = int(row["project_id"])
+            project_name = str(row["project_name"] or "Unassigned")
+            status_key   = STATUS_MAP.get(int(row["status_id"]), "unknown")
+            key          = (project_id, project_name)
+
+            month_data[month_name][key]["total"] += 1
+            month_data[month_name][key]["status_breakdown"][status_key] += 1
+
+        # ── Build Response ───────────────────────────────────────
+        month_order = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ]
+
+        heatmap_data = []
+
+        for month in month_order:
+
+            projects_in_month = [
+                {
+                    "project_id":       pid,
+                    "project_name":     pname,
+                    "total":            pdata["total"],
+                    "status_breakdown": dict(pdata["status_breakdown"]),
+                }
+                for (pid, pname), pdata in month_data.get(month, {}).items()
+            ]
+
+            projects_in_month.sort(
+                key=lambda x: x["total"],
+                reverse=True
+            )
+
+            heatmap_data.append({
+                "month":    month,
+                "projects": projects_in_month
+            })
 
         return {
-
-            "success": False,
-
-            "error": str(e)
-
+            "status": True,
+            "filters": {
+                "from_date":    payload.from_date,
+                "to_date":      payload.to_date,
+                "project_name": payload.project_name,
+            },
+            "project_dropdown": project_dropdown,
+            "data":             heatmap_data,
         }
- 
+
+    except Exception as e:
+        return {
+            "status":  False,
+            "message": str(e)
+        }

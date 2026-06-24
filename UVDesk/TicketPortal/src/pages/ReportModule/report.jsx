@@ -26,6 +26,7 @@ import reportService from "../../api/reportService";
 import {
   Dashboard as DashboardIcon,
   Assessment as AssessmentIcon,
+  GridView as GridViewIcon,
 } from "@mui/icons-material";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -244,15 +245,18 @@ function Report() {
     setPage(0);
   };
 
-  const activeTab = location.pathname.includes("report-module")
-    ? "report"
+const activeTab = location.pathname.includes("report-module")
+  ? "report"
+  : location.pathname.includes("workload")
+    ? "workload"          // ← ADD THIS
     : "dashboard";
-  const handleTabChange = (targetTab) => {
-    if (targetTab !== activeTab) {
-      navigate(targetTab === "dashboard" ? "/" : "/report-module");
-    }
-  };
-
+const handleTabChange = (targetTab) => {
+  if (targetTab !== activeTab) {
+    if (targetTab === "dashboard") navigate("/");
+    else if (targetTab === "report") navigate("/report-module");
+    else if (targetTab === "workload") navigate("/workload");  // ← ADD THIS
+  }
+};
   // Agent table scroll
   useEffect(() => {
     if (selectedAgentId && ticketSectionRef.current) {
@@ -541,6 +545,12 @@ const fetchTicketsByStatus = async (
                   id: "report",
                   label: "Report",
                   icon: <AssessmentIcon sx={{ mr: 0.8, fontSize: 15 }} />,
+                },
+
+                {
+                 id: "workload",                                          // ← ADD THIS
+                 label: "Workload",
+                 icon: <GridViewIcon sx={{ mr: 0.8, fontSize: 15 }} />,
                 },
               ].map((tab) => {
                 const isActive = activeTab === tab.id;

@@ -8,11 +8,7 @@ const workloadService = {
     return response.data;
   },
 
-  // Ticket Details — POST /api/ticket-details
-  getTicketDetails: async (payload) => {
-    const response = await axiosInstance.post("/api/ticket-details", payload);
-    return response.data;
-  },
+
 
   // Ticket Chat — GET /api/ticket-chat?ticket_id=N
   getTicketChat: async (ticketId) => {

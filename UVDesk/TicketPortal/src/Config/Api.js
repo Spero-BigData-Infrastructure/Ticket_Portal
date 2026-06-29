@@ -8,7 +8,6 @@ const getApiBaseUrl = () => {
   // 🔹 Local development
   if (hostname === "localhost") {
     return "http://192.168.1.204:8558";
-    
   }
 
   // 🔹 Local network IP

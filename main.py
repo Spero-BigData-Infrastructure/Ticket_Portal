@@ -2068,7 +2068,7 @@ async def get_ticket_chat(ticket_id: int = Query(...)):
 #     project_name: Optional[str] = None
  
  
-# # @app.post("/api/project-heatmap")
+# @app.post("/api/project-heatmap")
 # async def project_heatmap(
 #     payload: ProjectHeatmapRequest = Body(
 #         default_factory=ProjectHeatmapRequest
@@ -2248,6 +2248,331 @@ async def get_ticket_chat(ticket_id: int = Query(...)):
 #         }
 ###################################################################################################
 
+# class ProjectHeatmapRequest(BaseModel):
+#     from_date: Optional[str] = None
+#     to_date: Optional[str] = None
+#     project_name: Optional[str] = None
+
+
+# @app.post("/api/project-heatmap")
+# async def project_heatmap(
+#     payload: ProjectHeatmapRequest = Body(
+#         default_factory=ProjectHeatmapRequest
+#     )
+# ):
+#     try:
+#         STATUS_MAP = {
+#             1: "open",
+#             2: "pending",
+#             3: "answered",
+#             4: "resolved",
+#             5: "closed",
+#         }
+#         STATUS_LABEL = {
+#             1: "Open",
+#             2: "Pending",
+#             3: "Answered",
+#             4: "Resolved",
+#             5: "Closed",
+#         }
+
+#         # ── Step 1: Project dropdown from uv_support_group ───────
+#         project_rows = await database.fetch_all(
+#             "SELECT id, name FROM uv_support_group ORDER BY name"
+#         )
+#         all_projects = [
+#             {"id": int(r["id"]), "name": str(r["name"] or "").strip()}
+#             for r in (project_rows or [])
+#         ]
+#         all_projects.append({"id": 0, "name": "Unassigned"})
+
+#         project_dropdown = [
+#             {"project_id": p["id"], "project_name": p["name"]}
+#             for p in all_projects
+#         ]
+
+#         # ── Step 2: Build WHERE filters (purana logic) ────────────
+#         filters = ["t.is_trashed != 1"]
+#         params  = {}
+
+#         if payload.from_date and payload.to_date:
+#             filters.append("""
+#             (
+#                 (t.status_id IN (1,2,3)
+#                     AND DATE(t.created_at) BETWEEN :from_date AND :to_date)
+#                 OR
+#                 (t.status_id IN (4,5)
+#                     AND DATE(t.updated_at) BETWEEN :from_date AND :to_date)
+#             )
+#             """)
+#             params["from_date"] = payload.from_date
+#             params["to_date"]   = payload.to_date
+#             year = int(payload.from_date[:4])
+#         else:
+#             filters.append("""
+#             (
+#                 (t.status_id IN (1,2,3)
+#                     AND YEAR(t.created_at) = :current_year)
+#                 OR
+#                 (t.status_id IN (4,5)
+#                     AND YEAR(t.updated_at) = :current_year)
+#             )
+#             """)
+#             params["current_year"] = datetime.now().year
+#             year = datetime.now().year
+
+#         if payload.project_name and payload.project_name.strip():
+#             filters.append("COALESCE(sg.name, 'Unassigned') = :project_name")
+#             params["project_name"] = payload.project_name.strip()
+
+#         where_clause = " AND ".join(filters)
+
+#         # ── Step 3: Main query — full ticket details ──────────────
+#         query = f"""
+#         SELECT
+#             t.id          AS ticket_id,
+#             t.subject,
+#             t.status_id,
+#             t.created_at,
+#             t.updated_at,
+#             t.agent_id,
+
+#             CONCAT(
+#                 COALESCE(a.first_name, ''),
+#                 ' ',
+#                 COALESCE(a.last_name, '')
+#             ) AS agent_name,
+
+#             CONCAT(
+#                 COALESCE(c.first_name, ''),
+#                 ' ',
+#                 COALESCE(c.last_name, '')
+#             ) AS added_by,
+
+#             COALESCE(sg.name, 'Unassigned') AS project_name,
+#             ty.code                         AS ticket_type,
+
+#             CASE
+#                 WHEN t.status_id IN (1,2,3)
+#                     THEN DATE_FORMAT(t.created_at, '%b')
+#                 ELSE DATE_FORMAT(t.updated_at, '%b')
+#             END AS month_name
+
+#         FROM uv_ticket t
+
+#         INNER JOIN uv_user a
+#             ON t.agent_id = a.id
+#            AND a.is_enabled != 2
+
+#         LEFT JOIN uv_user c
+#             ON t.customer_id = c.id
+
+#         LEFT JOIN uv_ticket_type ty
+#             ON t.type_id = ty.id
+
+#         LEFT JOIN uv_support_group sg
+#             ON t.group_id = sg.id
+
+#         WHERE {where_clause}
+#         """
+
+#         rows = await database.fetch_all(query=query, values=params)
+
+#         # ── Step 4: Global summary counters ──────────────────────
+#         global_summary = {
+#             "total_tickets":    0,
+#             "active_tickets":   0,
+#             "open_tickets":     0,
+#             "pending_tickets":  0,
+#             "answered_tickets": 0,
+#             "resolved_tickets": 0,
+#             "closed_tickets":   0,
+#             "total_projects":   set(),
+#         }
+
+#         # month_project_data[month][project_name]
+#         month_project_data = defaultdict(
+#             lambda: defaultdict(
+#                 lambda: {
+#                     "overall": {
+#                         "open": 0, "pending": 0, "answered": 0,
+#                         "resolved": 0, "closed": 0,
+#                         "active": 0, "total": 0
+#                     },
+#                     "tickets": []
+#                 }
+#             )
+#         )
+
+#         # ── Step 5: Process rows ──────────────────────────────────
+#         for row in rows:
+#             r           = dict(row)
+#             status_id   = r["status_id"]
+#             month_label = r["month_name"]  # SQL se directly aa raha hai
+
+#             if not month_label:
+#                 continue
+
+#             project_name = (r["project_name"] or "Unassigned").strip()
+
+#             # ── SLA calculation ───────────────────────────────────
+#             created_at = parse_dt(r["created_at"])
+#             updated_at = parse_dt(r["updated_at"])
+#             sla_end    = updated_at if status_id == 5 else get_effective_now()
+
+#             sla_hours = (
+#                 calculate_working_hours(created_at, sla_end)
+#                 if created_at and sla_end else 0.0
+#             )
+#             if (
+#                 sla_hours == 0
+#                 and created_at and sla_end
+#                 and sla_end > created_at
+#             ):
+#                 sla_hours = (sla_end - created_at).total_seconds() / 3600
+
+#             # ── Ticket dict ───────────────────────────────────────
+#             ticket = {
+#                 "ticket_id":  f"#{r['ticket_id']}",
+#                 "subject":    r["subject"],
+#                 "agent_id":   r["agent_id"],
+#                 "agent_name": (r["agent_name"] or "").strip(),
+#                 "added_by":   (r["added_by"] or "").strip(),
+#                 "project":    project_name,
+#                 "type":       r["ticket_type"],
+#                 "status":     STATUS_LABEL.get(status_id, "Unknown"),
+#                 "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+#                 "updated_at": r["updated_at"].isoformat() if r["updated_at"] else None,
+#                 "closed_at": (
+#                     r["updated_at"].strftime("%d %b %Y, %H:%M")
+#                     if status_id == 5 and r["updated_at"] else None
+#                 ),
+#                 "sla_hours": format_sla_hours(sla_hours),
+#                 "sla_days":  round(sla_hours / 8.5, 2),
+#             }
+
+#             # ── Global summary ────────────────────────────────────
+#             global_summary["total_tickets"] += 1
+#             global_summary["total_projects"].add(project_name)
+
+#             if status_id in (1, 2, 3): global_summary["active_tickets"]   += 1
+#             if status_id == 1:         global_summary["open_tickets"]     += 1
+#             if status_id == 2:         global_summary["pending_tickets"]  += 1
+#             if status_id == 3:         global_summary["answered_tickets"] += 1
+#             if status_id == 4:         global_summary["resolved_tickets"] += 1
+#             if status_id == 5:         global_summary["closed_tickets"]   += 1
+
+#             # ── Month-project bucket ──────────────────────────────
+#             bucket     = month_project_data[month_label][project_name]
+#             status_key = STATUS_MAP.get(status_id, "unknown")
+#             if status_key in bucket["overall"]:
+#                 bucket["overall"][status_key] += 1
+#             bucket["overall"]["total"] += 1
+#             bucket["tickets"].append(ticket)
+
+#         # ── Step 6: Finalize summary ──────────────────────────────
+#         global_summary["total_projects"] = len(global_summary["total_projects"])
+
+#         # ── Step 7: Build months output ───────────────────────────
+#         MONTH_ORDER = [
+#             "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+#             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+#         ]
+
+#         months_output = []
+
+#         for month in MONTH_ORDER:
+#             month_data = month_project_data.get(month, {})
+
+#             # Project filter laga → sirf wahi, warna sab
+#             if payload.project_name and payload.project_name.strip():
+#                 projects_to_show = [
+#                     p for p in all_projects
+#                     if p["name"].lower() == payload.project_name.strip().lower()
+#                 ]
+#             else:
+#                 projects_to_show = all_projects
+
+#             projects_in_month = []
+
+#             for proj in projects_to_show:
+#                 proj_name = proj["name"]
+#                 pdata     = month_data.get(proj_name)
+
+#                 if pdata:
+#                     overall = pdata["overall"].copy()
+#                     overall["active"] = (
+#                         overall["open"] +
+#                         overall["pending"] +
+#                         overall["answered"]
+#                     )
+#                     tickets = pdata["tickets"]
+#                 else:
+#                     overall = {
+#                         "open": 0, "pending": 0, "answered": 0,
+#                         "resolved": 0, "closed": 0,
+#                         "active": 0, "total": 0
+#                     }
+#                     tickets = []
+
+#                 tickets_by_status = {
+#                     "open":     [t for t in tickets if t["status"] == "Open"],
+#                     "pending":  [t for t in tickets if t["status"] == "Pending"],
+#                     "answered": [t for t in tickets if t["status"] == "Answered"],
+#                     "resolved": [t for t in tickets if t["status"] == "Resolved"],
+#                     "closed":   [t for t in tickets if t["status"] == "Closed"],
+#                 }
+
+#                 projects_in_month.append({
+#                     "project_name":      proj_name,
+#                     "overall":           overall,
+#                     "tickets_by_status": tickets_by_status,
+#                 })
+
+#             # Sort: highest total first
+#             projects_in_month.sort(
+#                 key=lambda x: x["overall"]["total"],
+#                 reverse=True
+#             )
+
+#             months_output.append({
+#                 "month":    month,
+#                 "projects": projects_in_month,
+#             })
+
+#         # ── Step 8: Final response ────────────────────────────────
+#         return {
+#             "status": True,
+#             "year":   year,
+#             "filters": {
+#                 "from_date":    payload.from_date,
+#                 "to_date":      payload.to_date,
+#                 "project_name": payload.project_name,
+#             },
+#             "summary": {
+#                 "total_tickets":    global_summary["total_tickets"],
+#                 "active_tickets":   global_summary["active_tickets"],
+#                 "open_tickets":     global_summary["open_tickets"],
+#                 "pending_tickets":  global_summary["pending_tickets"],
+#                 "answered_tickets": global_summary["answered_tickets"],
+#                 "resolved_tickets": global_summary["resolved_tickets"],
+#                 "closed_tickets":   global_summary["closed_tickets"],
+#                 "total_projects":   global_summary["total_projects"],
+#             },
+#             "project_dropdown": project_dropdown,
+#             "months":           months_output,
+#         }
+
+#     except Exception as e:
+#         return {
+#             "status":  False,
+#             "message": str(e)
+#         }
+
+
+
+
+
 class ProjectHeatmapRequest(BaseModel):
     from_date: Optional[str] = None
     to_date: Optional[str] = None
@@ -2276,14 +2601,16 @@ async def project_heatmap(
             5: "Closed",
         }
 
-        # ── Step 1: Project dropdown from uv_support_group ───────
+        # ── Step 1: Project dropdown from uv_support_team ────────
+        # Same table as project-summary API (subGroup_id → uv_support_team.id)
         project_rows = await database.fetch_all(
-            "SELECT id, name FROM uv_support_group ORDER BY name"
+            "SELECT id, name FROM uv_support_team ORDER BY name"
         )
         all_projects = [
             {"id": int(r["id"]), "name": str(r["name"] or "").strip()}
             for r in (project_rows or [])
         ]
+        # Always include Unassigned (tickets with no subGroup_id)
         all_projects.append({"id": 0, "name": "Unassigned"})
 
         project_dropdown = [
@@ -2291,8 +2618,8 @@ async def project_heatmap(
             for p in all_projects
         ]
 
-        # ── Step 2: Build WHERE filters (purana logic) ────────────
-        filters = ["t.is_trashed != 1"]
+        # ── Step 2: Build WHERE filters ───────────────────────────
+        filters = ["t.is_trashed != 1", "a.is_enabled != 2"]
         params  = {}
 
         if payload.from_date and payload.to_date:
@@ -2322,12 +2649,12 @@ async def project_heatmap(
             year = datetime.now().year
 
         if payload.project_name and payload.project_name.strip():
-            filters.append("COALESCE(sg.name, 'Unassigned') = :project_name")
+            filters.append("COALESCE(st.name, 'Unassigned') = :project_name")
             params["project_name"] = payload.project_name.strip()
 
         where_clause = " AND ".join(filters)
 
-        # ── Step 3: Main query — full ticket details ──────────────
+        # ── Step 3: Main query — join uv_support_team via subGroup_id ──
         query = f"""
         SELECT
             t.id          AS ticket_id,
@@ -2349,8 +2676,8 @@ async def project_heatmap(
                 COALESCE(c.last_name, '')
             ) AS added_by,
 
-            COALESCE(sg.name, 'Unassigned') AS project_name,
-            ty.code                         AS ticket_type,
+            COALESCE(st.name, 'Unassigned') AS project_name,
+            ty.code                          AS ticket_type,
 
             CASE
                 WHEN t.status_id IN (1,2,3)
@@ -2362,7 +2689,6 @@ async def project_heatmap(
 
         INNER JOIN uv_user a
             ON t.agent_id = a.id
-           AND a.is_enabled != 2
 
         LEFT JOIN uv_user c
             ON t.customer_id = c.id
@@ -2370,8 +2696,8 @@ async def project_heatmap(
         LEFT JOIN uv_ticket_type ty
             ON t.type_id = ty.id
 
-        LEFT JOIN uv_support_group sg
-            ON t.group_id = sg.id
+        LEFT JOIN uv_support_team st
+            ON t.subGroup_id = st.id
 
         WHERE {where_clause}
         """
@@ -2387,7 +2713,6 @@ async def project_heatmap(
             "answered_tickets": 0,
             "resolved_tickets": 0,
             "closed_tickets":   0,
-            "total_projects":   set(),
         }
 
         # month_project_data[month][project_name]
@@ -2408,7 +2733,7 @@ async def project_heatmap(
         for row in rows:
             r           = dict(row)
             status_id   = r["status_id"]
-            month_label = r["month_name"]  # SQL se directly aa raha hai
+            month_label = r["month_name"]
 
             if not month_label:
                 continue
@@ -2453,7 +2778,6 @@ async def project_heatmap(
 
             # ── Global summary ────────────────────────────────────
             global_summary["total_tickets"] += 1
-            global_summary["total_projects"].add(project_name)
 
             if status_id in (1, 2, 3): global_summary["active_tickets"]   += 1
             if status_id == 1:         global_summary["open_tickets"]     += 1
@@ -2471,7 +2795,8 @@ async def project_heatmap(
             bucket["tickets"].append(ticket)
 
         # ── Step 6: Finalize summary ──────────────────────────────
-        global_summary["total_projects"] = len(global_summary["total_projects"])
+        # total_projects = all projects in uv_support_team + 1 for Unassigned
+        total_projects_count = len(all_projects)  # includes Unassigned appended above
 
         # ── Step 7: Build months output ───────────────────────────
         MONTH_ORDER = [
@@ -2484,7 +2809,6 @@ async def project_heatmap(
         for month in MONTH_ORDER:
             month_data = month_project_data.get(month, {})
 
-            # Project filter laga → sirf wahi, warna sab
             if payload.project_name and payload.project_name.strip():
                 projects_to_show = [
                     p for p in all_projects
@@ -2557,7 +2881,8 @@ async def project_heatmap(
                 "answered_tickets": global_summary["answered_tickets"],
                 "resolved_tickets": global_summary["resolved_tickets"],
                 "closed_tickets":   global_summary["closed_tickets"],
-                "total_projects":   global_summary["total_projects"],
+                # Projects with at least 1 ticket (assigned + unassigned both)
+                "total_projects":   total_projects_count,
             },
             "project_dropdown": project_dropdown,
             "months":           months_output,
